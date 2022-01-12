@@ -1017,6 +1017,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 			spi_delay_exec(&spi->cs_setup, NULL);
 		else
 			spi_delay_exec(&spi->cs_inactive, NULL);
+		else
+			msleep(7);
 	}
 }
 
