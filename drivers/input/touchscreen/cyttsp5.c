@@ -525,15 +525,66 @@ static int cyttsp5_get_sysinfo_regs(struct cyttsp5 *ts)
 	struct cyttsp5_sensing_conf_data_dev *scd_dev =
 		(struct cyttsp5_sensing_conf_data_dev *)
 		&ts->response_buf[HID_SYSINFO_SENSING_OFFSET];
+	u32 tmp;
 
 	cyttsp5_si_get_btn_data(ts);
 
 	scd->max_tch = scd_dev->max_num_of_tch_per_refresh_cycle;
-	scd->res_x = get_unaligned_le16(&scd_dev->res_x);
-	scd->res_y = get_unaligned_le16(&scd_dev->res_y);
-	scd->max_z = get_unaligned_le16(&scd_dev->max_z);
-	scd->len_x = get_unaligned_le16(&scd_dev->len_x);
-	scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+
+	if (scd->max_tch == 0) {
+		dev_dbg(ts->dev, "Max touch points cannot be zero\n");
+		scd->max_tch = 2;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-x", &tmp))
+		scd->res_x = get_unaligned_le16(&scd_dev->res_x);
+	else
+		scd->res_x = tmp;
+
+	if (scd->res_x == 0) {
+		dev_err(ts->dev, "ABS_X cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-y", &tmp))
+		scd->res_y = get_unaligned_le16(&scd_dev->res_y);
+	else
+		scd->res_y = tmp;
+
+	if (scd->res_y == 0) {
+		dev_err(ts->dev, "ABS_Y cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-max-pressure", &tmp))
+		scd->max_z = get_unaligned_le16(&scd_dev->max_z);
+	else
+		scd->max_z = tmp;
+
+	if (scd->max_z == 0) {
+		dev_err(ts->dev, "ABS_PRESSURE cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-x-mm", &tmp))
+		scd->len_x = get_unaligned_le16(&scd_dev->len_x);
+	else
+		scd->len_x = tmp;
+
+	if (scd->len_x == 0) {
+		dev_dbg(ts->dev, "Touchscreen size x cannot be zero\n");
+		scd->len_x = scd->res_x + 1;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-y-mm", &tmp))
+		scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+	else
+		scd->len_y = tmp;
+
+	if (scd->len_y == 0) {
+		dev_dbg(ts->dev, "Touchscreen size y cannot be zero\n");
+		scd->len_y = scd->res_y + 1;
+	}
 
 	return 0;
 }
@@ -925,6 +976,7 @@ static int cyttsp5_i2c_probe(struct i2c_client *client)
 
 static const struct of_device_id cyttsp5_of_match[] = {
 	{ .compatible = "cypress,tt21000", },
+	{ .compatible = "cypress,tma448", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cyttsp5_of_match);
