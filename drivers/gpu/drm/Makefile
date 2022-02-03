@@ -89,6 +89,12 @@ drm_dma_helper-$(CONFIG_DRM_FBDEV_EMULATION) += drm_fbdev_dma.o
 drm_dma_helper-$(CONFIG_DRM_KMS_HELPER) += drm_fb_dma_helper.o
 obj-$(CONFIG_DRM_GEM_DMA_HELPER) += drm_dma_helper.o
 
+obj-$(CONFIG_DRM_EPD_HELPER) += drm_epd_helper.o
+
+# drm_cma_helper-y := drm_gem_cma_helper.o
+# drm_cma_helper-$(CONFIG_DRM_KMS_HELPER) += drm_fb_cma_helper.o
+# obj-$(CONFIG_DRM_GEM_CMA_HELPER) += drm_cma_helper.o
+
 drm_shmem_helper-y := drm_gem_shmem_helper.o
 obj-$(CONFIG_DRM_GEM_SHMEM_HELPER) += drm_shmem_helper.o
 
