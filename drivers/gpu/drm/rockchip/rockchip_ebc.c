@@ -333,6 +333,7 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 
 static bool rockchip_ebc_schedule_area(struct list_head *areas,
 				       struct rockchip_ebc_area *area,
+				       struct drm_device *drm,
 				       u32 current_frame, u32 num_phases)
 {
 	struct rockchip_ebc_area *other;
@@ -366,8 +367,11 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 		 * If the other area has not started yet, and completely
 		 * contains this area, then this area is redundant.
 		 */
-		if (drm_rect_equals(&area->clip, &intersection))
+		if (drm_rect_equals(&area->clip, &intersection)) {
+			drm_dbg(drm, "area %p (" DRM_RECT_FMT ") dropped, inside " DRM_RECT_FMT "\n",
+				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&other->clip));
 			return false;
+		}
 
 		/* Otherwise, start at the same time as the other area. */
 		frame_begin = other->frame_begin;
@@ -506,7 +510,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 			 * If the area is redundant, drop it immediately.
 			 */
 			if (area->frame_begin == EBC_FRAME_PENDING &&
-			    !rockchip_ebc_schedule_area(&areas, area, frame,
+			    !rockchip_ebc_schedule_area(&areas, area, drm, frame,
 							ebc->lut.num_phases)) {
 				list_del(&area->list);
 				kfree(area);
@@ -523,6 +527,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 							 ctx->final,
 							 &area->clip);
 				sync_next = true;
+
+				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") started on %u\n",
+					area, DRM_RECT_ARG(&area->clip), frame);
 			}
 
 			/*
@@ -555,6 +562,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 							 ctx->next,
 							 &area->clip);
 				sync_prev = true;
+
+				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") finished on %u\n",
+					area, DRM_RECT_ARG(&area->clip), frame);
 
 				list_del(&area->list);
 				kfree(area);
@@ -1034,6 +1044,9 @@ static int rockchip_ebc_plane_atomic_check(struct drm_plane *plane,
 		area->frame_begin = EBC_FRAME_PENDING;
 		area->clip = clip;
 
+		drm_dbg(plane->dev, "area %p (" DRM_RECT_FMT ") allocated\n",
+			area, DRM_RECT_ARG(&area->clip));
+
 		list_add_tail(&area->list, &ebc_plane_state->areas);
 	}
 
@@ -1150,9 +1163,15 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 
 		if (!rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
 					  plane_state->fb, &src_clip)) {
+			drm_dbg(plane->dev, "area %p (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") skipped\n",
+				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip));
+
 			/* Drop the area if the FB didn't actually change. */
 			list_del(&area->list);
 			kfree(area);
+		} else {
+			drm_dbg(plane->dev, "area %p (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") blitted\n",
+				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip));
 		}
 	}
 
