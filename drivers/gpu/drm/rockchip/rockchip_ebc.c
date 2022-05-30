@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sched.h>
 #include <linux/dma-mapping.h>
 
 #include <drm/drm_atomic.h>
@@ -760,12 +761,13 @@ static int rockchip_ebc_refresh_thread(void *data)
 			rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_RESET);
 		}
 
-		while (!kthread_should_park()) {
+		while ((!kthread_should_park()) && (!kthread_should_stop())) {
 			rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 
 			set_current_state(TASK_IDLE);
-			if (list_empty(&ctx->queue))
+			if (list_empty(&ctx->queue) && (!kthread_should_stop()) && (!kthread_should_park())){
 				schedule();
+			}
 			__set_current_state(TASK_RUNNING);
 		}
 
@@ -775,8 +777,9 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 */
 		memset(ctx->next, 0xff, ctx->gray4_size);
 		rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
-
-		kthread_parkme();
+		if (!kthread_should_stop()){
+			kthread_parkme();
+		}
 	}
 
 	return 0;
@@ -925,7 +928,7 @@ static void rockchip_ebc_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (crtc_state->mode_changed)
-		kthread_unpark(ebc->refresh_thread);
+			kthread_unpark(ebc->refresh_thread);
 }
 
 static void rockchip_ebc_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -935,8 +938,11 @@ static void rockchip_ebc_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state;
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	if (crtc_state->mode_changed)
-		kthread_park(ebc->refresh_thread);
+	if (crtc_state->mode_changed){
+		if (! ((ebc->refresh_thread->__state) & (TASK_DEAD))){
+			kthread_park(ebc->refresh_thread);
+		}
+	}
 }
 
 static const struct drm_crtc_helper_funcs rockchip_ebc_crtc_helper_funcs = {
@@ -1573,9 +1579,8 @@ static int rockchip_ebc_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	drm_dev_unregister(&ebc->drm);
-	drm_atomic_helper_shutdown(&ebc->drm);
-
 	kthread_stop(ebc->refresh_thread);
+	drm_atomic_helper_shutdown(&ebc->drm);
 
 	pm_runtime_disable(dev);
 	if (!pm_runtime_status_suspended(dev))
@@ -1589,6 +1594,7 @@ static void rockchip_ebc_shutdown(struct platform_device *pdev)
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
+	kthread_stop(ebc->refresh_thread);
 	drm_atomic_helper_shutdown(&ebc->drm);
 
 	if (!pm_runtime_status_suspended(dev))
