@@ -506,6 +506,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		bool sync_next = false;
 		bool sync_prev = false;
 
+		// now the CPU is allowed to change the phase buffer
+		dma_sync_single_for_cpu(dev, phase_handle, phase_size, DMA_TO_DEVICE);
+
 		/* Move the queued damage areas to the local list. */
 		spin_lock(&ctx->queue_lock);
 		list_splice_tail_init(&ctx->queue, &areas);
@@ -533,6 +536,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 
 			/* Copy ctx->final to ctx->next on the first frame. */
 			if (frame_delta == 0) {
+				dma_sync_single_for_cpu(dev, next_handle, gray4_size, DMA_TO_DEVICE);
 				rockchip_ebc_blit_pixels(ctx, ctx->next,
 							 ctx->final,
 							 &area->clip);
@@ -568,6 +572,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 			 * also ensures both phase buffers get set to 0xff.
 			 */
 			if (frame_delta > last_phase) {
+				dma_sync_single_for_cpu(dev, prev_handle, gray4_size, DMA_TO_DEVICE);
 				rockchip_ebc_blit_pixels(ctx, ctx->prev,
 							 ctx->next,
 							 &area->clip);
