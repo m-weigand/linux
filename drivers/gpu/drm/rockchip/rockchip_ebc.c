@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/dma-mapping.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -479,8 +480,8 @@ static void rockchip_ebc_blit_pixels(const struct rockchip_ebc_ctx *ctx,
 static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 					 struct rockchip_ebc_ctx *ctx)
 {
-	dma_addr_t next_handle = virt_to_phys(ctx->next);
-	dma_addr_t prev_handle = virt_to_phys(ctx->prev);
+	// dma_addr_t next_handle = virt_to_phys(ctx->next);
+	// dma_addr_t prev_handle = virt_to_phys(ctx->prev);
 	struct rockchip_ebc_area *area, *next_area;
 	u32 last_phase = ebc->lut.num_phases - 1;
 	struct drm_device *drm = &ebc->drm;
@@ -489,10 +490,18 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 	LIST_HEAD(areas);
 	u32 frame;
 
+	dma_addr_t next_handle = dma_map_single(dev, ctx->next, ctx->gray4_size, DMA_TO_DEVICE);
+	dma_addr_t prev_handle = dma_map_single(dev, ctx->prev, ctx->gray4_size, DMA_TO_DEVICE);
+
+	dma_addr_t phase_handles[2];
+	phase_handles[0] = dma_map_single(dev, ctx->phase[0], ctx->gray4_size, DMA_TO_DEVICE);
+	phase_handles[1] = dma_map_single(dev, ctx->phase[1], ctx->gray4_size, DMA_TO_DEVICE);
+
 	for (frame = 0;; frame++) {
 		/* Swap phase buffers to minimize latency between frames. */
 		u8 *phase_buffer = ctx->phase[frame % 2];
-		dma_addr_t phase_handle = virt_to_phys(phase_buffer);
+		// dma_addr_t phase_handle = virt_to_phys(phase_buffer);
+		dma_addr_t phase_handle = phase_handles[frame % 2];
 		bool sync_next = false;
 		bool sync_prev = false;
 
@@ -603,6 +612,10 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				drm_err(drm, "Frame %d timed out!\n", frame);
 		}
 	}
+	dma_unmap_single(dev, next_handle, ctx->gray4_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, prev_handle, ctx->gray4_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
 }
 
 static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
