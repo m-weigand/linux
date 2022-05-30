@@ -507,7 +507,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		bool sync_prev = false;
 
 		// now the CPU is allowed to change the phase buffer
-		dma_sync_single_for_cpu(dev, phase_handle, phase_size, DMA_TO_DEVICE);
+		dma_sync_single_for_cpu(dev, phase_handle, ctx->phase_size, DMA_TO_DEVICE);
 
 		/* Move the queued damage areas to the local list. */
 		spin_lock(&ctx->queue_lock);
