@@ -317,6 +317,7 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 	u32 gray4_size = ctx->gray4_size;
 	struct device *dev = drm->dev;
 
+	dma_sync_single_for_device(dev, next_handle,
 				   gray4_size, DMA_TO_DEVICE);
 	dma_sync_single_for_device(dev, prev_handle,
 				   gray4_size, DMA_TO_DEVICE);
