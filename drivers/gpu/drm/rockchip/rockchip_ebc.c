@@ -317,6 +317,15 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 	u32 gray4_size = ctx->gray4_size;
 	struct device *dev = drm->dev;
 
+	struct rockchip_ebc_area *area, *next_area;
+	LIST_HEAD(areas);
+
+	spin_lock(&ctx->queue_lock);
+	list_splice_tail_init(&ctx->queue, &areas);
+	spin_unlock(&ctx->queue_lock);
+
+	memcpy(ctx->next, ctx->final, gray4_size);
+
 	dma_sync_single_for_device(dev, next_handle,
 				   gray4_size, DMA_TO_DEVICE);
 	dma_sync_single_for_device(dev, prev_handle,
@@ -329,6 +338,12 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 		     ebc->dsp_start |
 		     EBC_DSP_START_DSP_FRM_TOTAL(ebc->lut.num_phases - 1) |
 		     EBC_DSP_START_DSP_FRM_START);
+	// while we wait for the refresh, delete all scheduled areas
+	list_for_each_entry_safe(area, next_area, &areas, list) {
+		list_del(&area->list);
+		kfree(area);
+	}
+
 	if (!wait_for_completion_timeout(&ebc->display_end,
 					 EBC_REFRESH_TIMEOUT))
 		drm_err(drm, "Refresh timed out!\n");
@@ -756,6 +771,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 */
 		memset(ctx->prev, 0xff, ctx->gray4_size);
 		memset(ctx->next, 0xff, ctx->gray4_size);
+		memset(ctx->final, 0xff, ctx->gray4_size);
 		/* NOTE: In direct mode, the phase buffers are repurposed for
 		 * source driver polarity data, where the no-op value is 0. */
 		memset(ctx->phase[0], direct_mode ? 0 : 0xff, ctx->phase_size);
@@ -786,7 +802,8 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * Clear the display before disabling the CRTC. Use the
 		 * highest-quality waveform to minimize visible artifacts.
 		 */
-		memset(ctx->next, 0xff, ctx->gray4_size);
+		// memset(ctx->next, 0xff, ctx->gray4_size);
+		memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
 		rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
 		if (!kthread_should_stop()){
 			kthread_parkme();
