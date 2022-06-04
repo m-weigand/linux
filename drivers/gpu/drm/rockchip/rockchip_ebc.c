@@ -154,6 +154,9 @@ struct rockchip_ebc {
 	u32				dsp_start;
 	bool				lut_changed;
 	bool				reset_complete;
+	spinlock_t			refresh_once_lock;
+	// should this go into the ctx?
+	bool do_one_full_refresh;
 };
 
 static int default_waveform = DRM_EPD_WF_GC16;
@@ -744,6 +747,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 {
 	struct rockchip_ebc *ebc = data;
 	struct rockchip_ebc_ctx *ctx;
+	bool one_full_refresh;
 
 	while (!kthread_should_stop()) {
 		/* The context will change each time the thread is unparked. */
@@ -790,7 +794,18 @@ static int rockchip_ebc_refresh_thread(void *data)
 		}
 
 		while ((!kthread_should_park()) && (!kthread_should_stop())) {
-			rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
+			spin_lock(&ebc->refresh_once_lock);
+			one_full_refresh = ebc->do_one_full_refresh;
+			spin_unlock(&ebc->refresh_once_lock);
+
+			if (one_full_refresh) {
+				spin_lock(&ebc->refresh_once_lock);
+				ebc->do_one_full_refresh = false;
+				spin_unlock(&ebc->refresh_once_lock);
+				rockchip_ebc_refresh(ebc, ctx, true, default_waveform);
+			} else {
+				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
+			}
 
 			set_current_state(TASK_IDLE);
 			if (list_empty(&ctx->queue) && (!kthread_should_stop()) && (!kthread_should_park())){
@@ -1519,6 +1534,9 @@ static int rockchip_ebc_probe(struct platform_device *pdev)
 
 	ebc = devm_drm_dev_alloc(dev, &rockchip_ebc_drm_driver,
 				 struct rockchip_ebc, drm);
+
+	spin_lock_init(&ebc->refresh_once_lock);
+
 	if (IS_ERR(ebc))
 		return PTR_ERR(ebc);
 
