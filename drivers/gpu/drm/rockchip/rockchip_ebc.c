@@ -183,6 +183,14 @@ static bool skip_reset = false;
 module_param(skip_reset, bool, 0444);
 MODULE_PARM_DESC(skip_reset, "skip the initial display reset");
 
+static bool auto_refresh = false;
+module_param(auto_refresh, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(auto_refresh, "auto refresh the screen based on partial refreshed area");
+
+static int refresh_threshold = 20;
+module_param(refresh_threshold, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(refresh_threshold, "refresh threshold in screen area multiples");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static const struct drm_driver rockchip_ebc_drm_driver = {
@@ -243,6 +251,7 @@ struct rockchip_ebc_ctx {
 	u32				gray4_size;
 	u32				phase_pitch;
 	u32				phase_size;
+	u64 area_count;
 };
 
 static void rockchip_ebc_ctx_free(struct rockchip_ebc_ctx *ctx)
@@ -287,6 +296,10 @@ static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(u32 width, u32 height)
 	ctx->gray4_size  = gray4_size;
 	ctx->phase_pitch = width;
 	ctx->phase_size  = phase_size;
+
+	// we keep track of the updated area and use this value to trigger global
+	// refreshes if auto_refresh is enabled
+	ctx->area_count = 0;
 
 	return ctx;
 }
@@ -516,6 +529,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 	struct device *dev = drm->dev;
 	LIST_HEAD(areas);
 	u32 frame;
+	u64 local_area_count = 0;
 
 	dma_addr_t phase_handles[2];
 	phase_handles[0] = dma_map_single(dev, ctx->phase[0], ctx->gray4_size, DMA_TO_DEVICE);
@@ -558,6 +572,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 
 			/* Copy ctx->final to ctx->next on the first frame. */
 			if (frame_delta == 0) {
+				local_area_count += (u64) (
+					area->clip.x2 - area->clip.x1) *
+					(area->clip.y2 - area->clip.y1);
 				dma_sync_single_for_cpu(dev, next_handle, gray4_size, DMA_TO_DEVICE);
 				rockchip_ebc_blit_pixels(ctx, ctx->next,
 							 ctx->final,
@@ -642,6 +659,8 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 	}
 	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
+	/* printk(KERN_INFO "loca area count: %llu\n", local_area_count); */
+	ctx->area_count += local_area_count;
 }
 
 static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
@@ -655,6 +674,7 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	int ret, temperature;
 	dma_addr_t next_handle;
 	dma_addr_t prev_handle;
+	int one_screen_area = 1314144;
 
 	/* Resume asynchronously while preparing to refresh. */
 	ret = pm_runtime_get(dev);
@@ -737,6 +757,19 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 
 	dma_unmap_single(dev, next_handle, ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, prev_handle, ctx->gray4_size, DMA_TO_DEVICE);
+
+	// do we need a full refresh
+	if (auto_refresh){
+		if (ctx->area_count >= refresh_threshold * one_screen_area){
+			printk(KERN_INFO "rockchip: triggering full refresh due to drawn area threshold\n");
+			spin_lock(&ebc->refresh_once_lock);
+			ebc->do_one_full_refresh = true;
+			spin_unlock(&ebc->refresh_once_lock);
+			ctx->area_count = 0;
+		}
+	} else {
+		ctx->area_count = 0;
+	}
 
 	/* Drive the output pins low once the refresh is complete. */
 	regmap_write(ebc->regmap, EBC_DSP_START,
