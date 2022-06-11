@@ -544,19 +544,19 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 			item2->frame_begin = EBC_FRAME_PENDING;
 			item2->clip.x1 = xmin;
 			item2->clip.x2 = xcenter;
-			item2->clip.y1 = ycenter + 1;
+			item2->clip.y1 = ycenter;
 			item2->clip.y2 = ymax;
 
 			item3->frame_begin = EBC_FRAME_PENDING;
-			item3->clip.x1 = xcenter + 1;
+			item3->clip.x1 = xcenter;
 			item3->clip.x2 = xmax;
 			item3->clip.y1 = ymin;
 			item3->clip.y2 = ycenter;
 
 			item4->frame_begin = EBC_FRAME_PENDING;
-			item4->clip.x1 = xcenter + 1;
+			item4->clip.x1 = xcenter;
 			item4->clip.x2 = xmax;
-			item4->clip.y1 = ycenter + 1;
+			item4->clip.y1 = ycenter;
 			item4->clip.y2 = ymax;
 
 			*split_counter++;
