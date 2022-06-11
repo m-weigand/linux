@@ -559,7 +559,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 			item4->clip.y1 = ycenter;
 			item4->clip.y2 = ymax;
 
-			*split_counter++;
+			(*split_counter)++;
 
 			// let the outer loop delete this area
 			return false;
