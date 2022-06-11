@@ -193,6 +193,10 @@ static int refresh_threshold = 20;
 module_param(refresh_threshold, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(refresh_threshold, "refresh threshold in screen area multiples");
 
+static int split_area_limit = 12;
+module_param(split_area_limit, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(split_area_limit, "how many areas to split in each scheduling call");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -488,7 +492,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 
 			// we do not want to overhelm the refresh thread and limit us to a
 			// certain number of splits. The rest needs to wait
-			if (*split_counter >= 6)
+			if (*split_counter >= split_area_limit)
 				continue;
 
 			// we need four new rokchip_ebc_area entries that we splice into
