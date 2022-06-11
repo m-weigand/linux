@@ -206,7 +206,7 @@ static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
 	struct rockchip_ebc *ebc = dev_get_drvdata(dev->dev);
 
 	if (args->trigger_global_refresh){
-		printk(KERN_INFO "rockchip_ebc: ioctl would trigger full refresh \n");
+		printk(KERN_INFO "rockchip_ebc: ioctl triggered full refresh \n");
 		spin_lock(&ebc->refresh_once_lock);
 		ebc->do_one_full_refresh = true;
 		spin_unlock(&ebc->refresh_once_lock);
