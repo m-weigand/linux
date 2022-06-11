@@ -744,7 +744,6 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		/* Move the queued damage areas to the local list. */
 		spin_lock(&ctx->queue_lock);
 		list_splice_tail_init(&ctx->queue, &areas);
-		spin_unlock(&ctx->queue_lock);
 
 		list_for_each_entry_safe(area, next_area, &areas, list) {
 			s32 frame_delta;
@@ -831,6 +830,8 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 						   gray4_size, DMA_TO_DEVICE);
 		dma_sync_single_for_device(dev, phase_handle,
 					   ctx->phase_size, DMA_TO_DEVICE);
+
+		spin_unlock(&ctx->queue_lock);
 
 		/* if (frame) { */
 		/* 	if (!wait_for_completion_timeout(&ebc->display_end, */
@@ -1448,6 +1449,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	ebc_plane_state = to_ebc_plane_state(plane_state);
 	vaddr = ebc_plane_state->base.data[0].vaddr;
 
+	spin_lock(&ctx->queue_lock);
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list) {
 		struct drm_rect *dst_clip = &area->clip;
 		struct drm_rect src_clip = area->clip;
@@ -1493,10 +1495,11 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		}
 	}
 
-	if (list_empty(&ebc_plane_state->areas))
+	if (list_empty(&ebc_plane_state->areas)){
+		spin_unlock(&ctx->queue_lock);
 		return;
+	}
 
-	spin_lock(&ctx->queue_lock);
 	list_splice_tail_init(&ebc_plane_state->areas, &ctx->queue);
 	spin_unlock(&ctx->queue_lock);
 
