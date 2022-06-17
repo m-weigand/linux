@@ -624,8 +624,8 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 			return false;
 		}
 
-		/* Otherwise, the earliest start is the same time as that of the other
-		 * area. */
+		/* They do overlap but are are not equal and both not started yet, so
+		 * they can potentially start together */
 		frame_begin = max(frame_begin, other->frame_begin);
 
 		// try to split, otherwise continue
