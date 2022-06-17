@@ -1508,6 +1508,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	crtc_state = drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	ctx = to_ebc_crtc_state(crtc_state)->ctx;
 
+	spin_lock(&ctx->queue_lock);
 	drm_rect_fp_to_int(&src, &plane_state->src);
 	translate_x = plane_state->dst.x1 - src.x1;
 	translate_y = plane_state->dst.y1 - src.y1;
@@ -1515,7 +1516,6 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	ebc_plane_state = to_ebc_plane_state(plane_state);
 	vaddr = ebc_plane_state->base.data[0].vaddr;
 
-	spin_lock(&ctx->queue_lock);
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list) {
 		struct drm_rect *dst_clip = &area->clip;
 		struct drm_rect src_clip = area->clip;
