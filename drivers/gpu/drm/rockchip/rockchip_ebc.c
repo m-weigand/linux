@@ -594,7 +594,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 
 		/* If the other area already started, wait until it finishes. */
 		if (other->frame_begin < current_frame) {
-			frame_begin = other_end;
+			frame_begin = max(frame_begin, other_end);
 
 			// so here we would optimally want to split the new area into three
 			// parts that do not overlap with the already-started area, and one
