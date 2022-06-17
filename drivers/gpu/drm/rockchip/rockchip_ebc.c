@@ -591,7 +591,6 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 		intersection = area->clip;
 		if (!drm_rect_intersect(&intersection, &other->clip))
 			continue;
-		// we got here, so there is a collision
 
 		/* If the other area already started, wait until it finishes. */
 		if (other->frame_begin < current_frame) {
