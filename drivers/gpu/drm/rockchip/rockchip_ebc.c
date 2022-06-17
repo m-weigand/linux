@@ -866,9 +866,11 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 			 */
 			if (frame_delta > last_phase) {
 				dma_sync_single_for_cpu(dev, prev_handle, gray4_size, DMA_TO_DEVICE);
+				dma_sync_single_for_cpu(dev, next_handle, gray4_size, DMA_TO_DEVICE);
 				rockchip_ebc_blit_pixels(ctx, ctx->prev,
 							 ctx->next,
 							 &area->clip);
+				sync_prev = true;
 				sync_prev = true;
 
 				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") finished on %u\n",
