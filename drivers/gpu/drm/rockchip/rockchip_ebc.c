@@ -197,6 +197,10 @@ static int split_area_limit = 12;
 module_param(split_area_limit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many areas to split in each scheduling call");
 
+static int limit_fb_blits = -1;
+module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -228,10 +232,74 @@ static int ioctl_set_off_screen(struct drm_device *dev, void *data,
 	return 0;
 }
 
+
+/**
+ * struct rockchip_ebc_ctx - context for performing display refreshes
+ *
+ * @kref: Reference count, maintained as part of the CRTC's atomic state
+ * @queue: Queue of damaged areas to be refreshed
+ * @queue_lock: Lock protecting access to @queue
+ * @prev: Display contents (Y4) before this refresh
+ * @next: Display contents (Y4) after this refresh
+ * @final: Display contents (Y4) after all pending refreshes
+ * @phase: Buffers for selecting a phase from the EBC's LUT, 1 byte/pixel
+ * @gray4_pitch: Horizontal line length of a Y4 pixel buffer in bytes
+ * @gray4_size: Size of a Y4 pixel buffer in bytes
+ * @phase_pitch: Horizontal line length of a phase buffer in bytes
+ * @phase_size: Size of a phase buffer in bytes
+ */
+struct rockchip_ebc_ctx {
+	struct kref			kref;
+	struct list_head		queue;
+	spinlock_t			queue_lock;
+	u8				*prev;
+	u8				*next;
+	u8				*final;
+	u8				*phase[2];
+	u32				gray4_pitch;
+	u32				gray4_size;
+	u32				phase_pitch;
+	u32				phase_size;
+	u64 area_count;
+};
+
+struct ebc_crtc_state {
+	struct drm_crtc_state		base;
+	struct rockchip_ebc_ctx		*ctx;
+};
+
+static inline struct ebc_crtc_state *
+to_ebc_crtc_state(struct drm_crtc_state *crtc_state)
+{
+	return container_of(crtc_state, struct ebc_crtc_state, base);
+}
+static int ioctl_extract_fbs(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
+{
+	struct drm_rockchip_ebc_extract_fbs *args = data;
+	struct rockchip_ebc *ebc = dev_get_drvdata(dev->dev);
+	int copy_result = 0;
+	struct rockchip_ebc_ctx * ctx;
+
+	// todo: use access_ok here
+	access_ok(args->ptr_next, 1313144);
+	ctx = to_ebc_crtc_state(READ_ONCE(ebc->crtc.state))->ctx;
+	copy_result |= copy_to_user(args->ptr_prev, ctx->prev, 1313144);
+	copy_result |= copy_to_user(args->ptr_next, ctx->next, 1313144);
+	copy_result |= copy_to_user(args->ptr_final, ctx->final, 1313144);
+
+	copy_result |= copy_to_user(args->ptr_phase1, ctx->phase[0], 2 * 1313144);
+	copy_result |= copy_to_user(args->ptr_phase2, ctx->phase[1], 2 * 1313144);
+
+	return copy_result;
+}
+
 static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_EBC_GLOBAL_REFRESH, ioctl_trigger_global_refresh,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_EBC_OFF_SCREEN, ioctl_set_off_screen,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(ROCKCHIP_EBC_EXTRACT_FBS, ioctl_extract_fbs,
 			  DRM_RENDER_ALLOW),
 };
 
@@ -266,36 +334,6 @@ struct rockchip_ebc_area {
 	struct list_head		list;
 	struct drm_rect			clip;
 	u32				frame_begin;
-};
-
-/**
- * struct rockchip_ebc_ctx - context for performing display refreshes
- *
- * @kref: Reference count, maintained as part of the CRTC's atomic state
- * @queue: Queue of damaged areas to be refreshed
- * @queue_lock: Lock protecting access to @queue
- * @prev: Display contents (Y4) before this refresh
- * @next: Display contents (Y4) after this refresh
- * @final: Display contents (Y4) after all pending refreshes
- * @phase: Buffers for selecting a phase from the EBC's LUT, 1 byte/pixel
- * @gray4_pitch: Horizontal line length of a Y4 pixel buffer in bytes
- * @gray4_size: Size of a Y4 pixel buffer in bytes
- * @phase_pitch: Horizontal line length of a phase buffer in bytes
- * @phase_size: Size of a phase buffer in bytes
- */
-struct rockchip_ebc_ctx {
-	struct kref			kref;
-	struct list_head		queue;
-	spinlock_t			queue_lock;
-	u8				*prev;
-	u8				*next;
-	u8				*final;
-	u8				*phase[2];
-	u32				gray4_pitch;
-	u32				gray4_size;
-	u32				phase_pitch;
-	u32				phase_size;
-	u64 area_count;
 };
 
 static void rockchip_ebc_ctx_free(struct rockchip_ebc_ctx *ctx)
@@ -359,17 +397,6 @@ static void rockchip_ebc_ctx_release(struct kref *kref)
 /*
  * CRTC
  */
-
-struct ebc_crtc_state {
-	struct drm_crtc_state		base;
-	struct rockchip_ebc_ctx		*ctx;
-};
-
-static inline struct ebc_crtc_state *
-to_ebc_crtc_state(struct drm_crtc_state *crtc_state)
-{
-	return container_of(crtc_state, struct ebc_crtc_state, base);
-}
 
 static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 					struct rockchip_ebc_ctx *ctx,
@@ -1551,8 +1578,18 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 			dst_clip->x2 = plane_state->dst.x2 - x1;
 		}
 
-		clip_changed_fb = rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
-					  plane_state->fb, &src_clip, adjust_x1, adjust_x2);
+		if (limit_fb_blits != 0){
+			printk(KERN_INFO "atomic update: blitting: %i\n", limit_fb_blits);
+			clip_changed_fb = rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
+						  plane_state->fb, &src_clip, adjust_x1, adjust_x2);
+			// the counter should only reach 0 here, -1 can only be externally set
+			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
+		} else {
+			// we do not want to blit anything
+			printk(KERN_INFO "atomic update: not blitting: %i\n", limit_fb_blits);
+			clip_changed_fb = false;
+		}
+
 
 		// reverse coordinates
 		dst_clip->x1 += adjust_x1;
