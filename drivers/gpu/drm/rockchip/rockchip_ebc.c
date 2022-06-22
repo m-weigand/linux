@@ -847,6 +847,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		/* Move the queued damage areas to the local list. */
 		spin_lock(&ctx->queue_lock);
 		list_splice_tail_init(&ctx->queue, &areas);
+		/* spin_unlock(&ctx->queue_lock); */
 
 		list_for_each_entry_safe(area, next_area, &areas, list) {
 			s32 frame_delta;
