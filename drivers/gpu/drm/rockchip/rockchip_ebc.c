@@ -1645,6 +1645,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	/* spin_lock(&ctx->queue_lock); */
 	list_splice_tail_init(&ebc_plane_state->areas, &ctx->queue);
 	spin_unlock(&ctx->queue_lock);
 
