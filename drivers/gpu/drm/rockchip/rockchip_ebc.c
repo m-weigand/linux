@@ -1608,17 +1608,16 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		}
 
 		if (limit_fb_blits != 0){
-			printk(KERN_INFO "atomic update: blitting: %i\n", limit_fb_blits);
+			//printk(KERN_INFO "atomic update: blitting: %i\n", limit_fb_blits);
 			clip_changed_fb = rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
 						  plane_state->fb, &src_clip, adjust_x1, adjust_x2);
 			// the counter should only reach 0 here, -1 can only be externally set
 			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
 		} else {
 			// we do not want to blit anything
-			printk(KERN_INFO "atomic update: not blitting: %i\n", limit_fb_blits);
+			//printk(KERN_INFO "atomic update: not blitting: %i\n", limit_fb_blits);
 			clip_changed_fb = false;
 		}
-
 
 		// reverse coordinates
 		dst_clip->x1 += adjust_x1;
