@@ -453,6 +453,22 @@ static int try_to_split_area(
 	    struct rockchip_ebc_area **p_next_area,
 		struct drm_rect * intersection
 	    ){
+	int xmin, xmax, ymin, ymax, xcenter, ycenter;
+
+	bool no_xsplit = false;
+	bool no_ysplit = false;
+	bool split_both = true;
+
+	struct rockchip_ebc_area * item1;
+	struct rockchip_ebc_area * item2;
+	struct rockchip_ebc_area * item3;
+	struct rockchip_ebc_area * item4;
+
+	// we do not want to overhelm the refresh thread and limit us to a
+	// certain number of splits. The rest needs to wait
+	if (*split_counter >= split_area_limit)
+		return 0;
+
 
 	// for now, min size if 2x2
 	if ((area->clip.x2 - area->clip.x1 < 2) | (area->clip.y2 - area->clip.y1 < 2))
@@ -463,12 +479,6 @@ static int try_to_split_area(
 	// next outer loop - we delete this area so we need not to juggle
 	// around the four areas until we found the one that is actually
 	// overlapping)
-	int xmin, xmax, ymin, ymax, xcenter, ycenter;
-
-	bool no_xsplit = false;
-	bool no_ysplit = false;
-	bool split_both = true;
-
 	xmin = area->clip.x1;
 	if (intersection->x1 > xmin)
 		xcenter = intersection->x1;
@@ -496,20 +506,11 @@ static int try_to_split_area(
 	if (no_xsplit && no_ysplit)
 		return 0;
 
-	// we do not want to overhelm the refresh thread and limit us to a
-	// certain number of splits. The rest needs to wait
-	if (*split_counter >= split_area_limit)
-		return 0;
-
 	// we need four new rokchip_ebc_area entries that we splice into
 	// the list. Note that the currently next item shall be copied
 	// backwards because to prevent the outer list iteration from
 	// skipping over our newly created items.
 
-	struct rockchip_ebc_area * item1;
-	struct rockchip_ebc_area * item2;
-	struct rockchip_ebc_area * item3;
-	struct rockchip_ebc_area * item4;
 	item1 = kmalloc(sizeof(*item1), GFP_KERNEL);
 	if (split_both || no_xsplit)
 		item2 = kmalloc(sizeof(*item2), GFP_KERNEL);
@@ -752,16 +753,19 @@ static void rockchip_ebc_blit_pixels(const struct rockchip_ebc_ctx *ctx,
 
 	unsigned int x1_bytes = clip->x1 / 2;
 	unsigned int x2_bytes = clip->x2 / 2;
+
+	unsigned int pitch = ctx->gray4_pitch;
+	unsigned int width;
+	const u8 *src_line;
+	unsigned int y;
+	u8 *dst_line;
+
 	// the integer division floors by default, but we want to include the last
 	// byte (partially)
 	if (end_x_is_odd)
 		x2_bytes++;
 
-	unsigned int pitch = ctx->gray4_pitch;
-	unsigned int width = x2_bytes - x1_bytes;
-	const u8 *src_line;
-	unsigned int y;
-	u8 *dst_line;
+	width = x2_bytes - x1_bytes;
 
 	dst_line = dst + clip->y1 * pitch + x1_bytes;
 	src_line = src + clip->y1 * pitch + x1_bytes;
