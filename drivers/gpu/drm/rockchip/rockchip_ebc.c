@@ -957,11 +957,14 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		regmap_write(ebc->regmap, EBC_DSP_START,
 			     ebc->dsp_start |
 			     EBC_DSP_START_DSP_FRM_START);
-		if (frame) {
-			if (!wait_for_completion_timeout(&ebc->display_end,
-							 EBC_FRAME_TIMEOUT))
-				drm_err(drm, "Frame %d timed out!\n", frame);
-		}
+		/* if (frame) { */
+		/* 	if (!wait_for_completion_timeout(&ebc->display_end, */
+		/* 					 EBC_FRAME_TIMEOUT)) */
+		/* 		drm_err(drm, "Frame %d timed out!\n", frame); */
+		/* } */
+		if (!wait_for_completion_timeout(&ebc->display_end,
+						 EBC_FRAME_TIMEOUT))
+			drm_err(drm, "Frame %d timed out!\n", frame);
 	}
 	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
