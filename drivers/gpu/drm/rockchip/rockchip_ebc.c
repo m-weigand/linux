@@ -1526,7 +1526,8 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 				// want to keep here
 				// keep 4 higher bits
 				tmp_pixel = *dbuf & 0b11110000;
-				rgb1 = tmp_pixel;
+				// shift by four pixels to the lower bits
+				rgb1 = tmp_pixel >> 4;
 			}
 
 			gray = rgb0 | rgb1 << 4;
