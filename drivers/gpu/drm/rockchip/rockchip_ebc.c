@@ -413,14 +413,11 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 
 	spin_lock(&ctx->queue_lock);
 	list_splice_tail_init(&ctx->queue, &areas);
+	memcpy(ctx->next, ctx->final, gray4_size);
 	spin_unlock(&ctx->queue_lock);
 
-	memcpy(ctx->next, ctx->final, gray4_size);
-
-	dma_sync_single_for_device(dev, next_handle,
-				   gray4_size, DMA_TO_DEVICE);
-	dma_sync_single_for_device(dev, prev_handle,
-				   gray4_size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(dev, next_handle, gray4_size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(dev, prev_handle, gray4_size, DMA_TO_DEVICE);
 
 	reinit_completion(&ebc->display_end);
 	regmap_write(ebc->regmap, EBC_CONFIG_DONE,
@@ -1146,7 +1143,16 @@ static int rockchip_ebc_refresh_thread(void *data)
 				spin_lock(&ebc->refresh_once_lock);
 				ebc->do_one_full_refresh = false;
 				spin_unlock(&ebc->refresh_once_lock);
-				rockchip_ebc_refresh(ebc, ctx, true, default_waveform);
+/* 				 * @DRM_EPD_WF_A2: Fast transitions between black and white only */
+/* 				 * @DRM_EPD_WF_DU: Transitions 16-level grayscale to monochrome */
+/* 				 * @DRM_EPD_WF_DU4: Transitions 16-level grayscale to 4-level grayscale */
+/* 				 * @DRM_EPD_WF_GC16: High-quality but flashy 16-level grayscale */
+/* 				 * @DRM_EPD_WF_GCC16: Less flashy 16-level grayscale */
+/* 				 * @DRM_EPD_WF_GL16: Less flashy 16-level grayscale */
+/* 				 * @DRM_EPD_WF_GLR16: Less flashy 16-level grayscale, plus anti-ghosting */
+/* 				 * @DRM_EPD_WF_GLD16: Less flashy 16-level grayscale, plus anti-ghosting */
+				// Not sure why only the GC16 is able to clear the ghosts from A2
+				rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
 			} else {
 				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 			}
