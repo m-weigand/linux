@@ -201,6 +201,14 @@ static int limit_fb_blits = -1;
 module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
 
+static bool bw_mode = false;
+module_param(bw_mode, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bw_mode, "black & white mode");
+
+static int bw_threshold = 7;
+module_param(bw_threshold, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bw_threshold, "black and white threshold");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -1152,7 +1160,8 @@ static int rockchip_ebc_refresh_thread(void *data)
 /* 				 * @DRM_EPD_WF_GLR16: Less flashy 16-level grayscale, plus anti-ghosting */
 /* 				 * @DRM_EPD_WF_GLD16: Less flashy 16-level grayscale, plus anti-ghosting */
 				// Not sure why only the GC16 is able to clear the ghosts from A2
-				rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
+				// rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
+				rockchip_ebc_refresh(ebc, ctx, true, default_waveform);
 			} else {
 				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 			}
@@ -1534,6 +1543,21 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 				tmp_pixel = *dbuf & 0b11110000;
 				// shift by four pixels to the lower bits
 				rgb1 = tmp_pixel >> 4;
+			}
+
+			if (bw_mode){
+				// convert to lack and white
+				if (rgb0 >= bw_threshold){
+					rgb0 = 15;
+				} else {
+					rgb0 = 0;
+				}
+
+				if (rgb1 >= bw_threshold){
+					rgb1 = 15;
+				} else {
+					rgb1 = 0;
+				}
 			}
 
 			gray = rgb0 | rgb1 << 4;
