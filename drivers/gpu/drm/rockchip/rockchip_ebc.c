@@ -140,6 +140,9 @@
 #define EBC_REFRESH_TIMEOUT		msecs_to_jiffies(3000)
 #define EBC_SUSPEND_DELAY_MS		2000
 
+#define EBC_FIRMWARE		"rockchip/ebc.wbf"
+MODULE_FIRMWARE(EBC_FIRMWARE);
+
 struct rockchip_ebc {
 	struct clk			*dclk;
 	struct clk			*hclk;
