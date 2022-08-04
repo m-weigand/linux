@@ -1500,6 +1500,19 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 	void *dst;
 	int test1, test2;
 
+	unsigned int delta_y;
+	unsigned int start_y;
+	unsigned int end_y2;
+
+	// -2 because we need to go to the beginning of the last line
+	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
+	delta_y = panel_reflection ? 1: -1;
+
+	if (panel_reflection)
+		end_y2 = src_clip->y2;
+	else
+		end_y2 = src_clip->y2 - 1;
+
 	delta_x = panel_reflection ? -1 : 1;
 	start_x = panel_reflection ? src_clip->x2 - 1 : src_clip->x1;
 	// depending on the direction we must either save the first or the last bit
@@ -1507,9 +1520,9 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 	test2 = panel_reflection ? adjust_x2 : adjust_x1;
 
 	dst = ctx->final + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
-	src = vaddr + src_clip->y1 * src_pitch + start_x * fb->format->cpp[0];
+	src = vaddr + start_y * src_pitch + start_x * fb->format->cpp[0];
 
-	for (y = src_clip->y1; y < src_clip->y2; y++) {
+	for (y = src_clip->y1; y < end_y2; y++) {
 		const u32 *sbuf = src;
 		u8 *dbuf = dst;
 
@@ -1569,7 +1582,10 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 		}
 
 		dst += dst_pitch;
-		src += src_pitch;
+		if (panel_reflection)
+			src += src_pitch;
+		else
+			src -= src_pitch;
 	}
 
 	return !!changed;
@@ -1639,6 +1655,15 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 
 			dst_clip->x1 = plane_state->dst.x2 - x2;
 			dst_clip->x2 = plane_state->dst.x2 - x1;
+		}
+		else
+		{
+			// "normal" mode
+			// flip y coordinates
+			int y1 = dst_clip->y1, y2 = dst_clip->y2;
+
+			dst_clip->y1 = plane_state->dst.y2 - y2;
+			dst_clip->y2 = plane_state->dst.y2 - y1;
 		}
 
 		if (limit_fb_blits != 0){
