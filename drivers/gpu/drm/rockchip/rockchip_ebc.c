@@ -196,6 +196,10 @@ static int refresh_threshold = 20;
 module_param(refresh_threshold, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(refresh_threshold, "refresh threshold in screen area multiples");
 
+static int refresh_waveform = DRM_EPD_WF_GC16;
+module_param(refresh_waveform, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(refresh_waveform, "refresh waveform to use");
+
 static int split_area_limit = 12;
 module_param(split_area_limit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many areas to split in each scheduling call");
@@ -1164,7 +1168,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 /* 				 * @DRM_EPD_WF_GLD16: Less flashy 16-level grayscale, plus anti-ghosting */
 				// Not sure why only the GC16 is able to clear the ghosts from A2
 				// rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
-				rockchip_ebc_refresh(ebc, ctx, true, default_waveform);
+				rockchip_ebc_refresh(ebc, ctx, true, refresh_waveform);
 			} else {
 				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 			}
