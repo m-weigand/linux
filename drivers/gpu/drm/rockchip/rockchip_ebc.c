@@ -1508,6 +1508,13 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 	unsigned int start_y;
 	unsigned int end_y2;
 
+	int pattern[4][4] = {
+		{0, 8, 2, 10},
+		{12, 4, 14, 6},
+		{3, 11, 1,  9},
+		{15, 7, 13, 5},
+	};
+
 	// -2 because we need to go to the beginning of the last line
 	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
 	delta_y = panel_reflection ? 1: -1;
@@ -1567,13 +1574,15 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 
 			if (bw_mode){
 				// convert to lack and white
-				if (rgb0 >= bw_threshold){
+				if (rgb0 > pattern[x & 3][y & 3]){
+				// if (rgb0 >= bw_threshold){
 					rgb0 = 15;
 				} else {
 					rgb0 = 0;
 				}
 
-				if (rgb1 >= bw_threshold){
+				// if (rgb1 >= bw_threshold){
+				if (rgb1 > pattern[(x + 1) & 3][y & 3]){
 					rgb1 = 15;
 				} else {
 					rgb1 = 0;
