@@ -16,3 +16,39 @@
 &spk_amp {
 	VCC-supply = <&vcc_bat>;
 };
+
+&usb2phy0_otg {
+	port {
+		usb2phy0_typec_hs: endpoint {
+			remote-endpoint = <&usbc_hs>;
+		};
+	};
+};
+
+&wusb3801 {
+	status = "okay";
+
+	connector {
+		compatible = "usb-c-connector";
+		label = "USB-C";
+		vbus-supply = <&otg_switch>;
+		power-role = "dual";
+		try-power-role = "sink";
+		data-role = "dual";
+		typec-power-opmode = "default";
+		pd-disable;
+
+		ports {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+
+			port@0 {
+				reg = <0x00>;
+
+				usbc_hs: endpoint {
+					remote-endpoint = <&usb2phy0_typec_hs>;
+				};
+			};
+		};
+	};
+};
