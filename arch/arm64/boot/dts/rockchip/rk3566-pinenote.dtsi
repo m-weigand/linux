@@ -63,26 +63,26 @@
 		#sound-dai-cells = <1>;
 	};
 
-	bt-sound {
-		compatible = "simple-audio-card";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		simple-audio-card,name = "PineNote Bluetooth";
-
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			frame-master = <&bt_link0_cpu>;
-			bitclock-master = <&bt_link0_cpu>;
-
-			bt_link0_cpu: cpu {
-				sound-dai = <&i2s2_2ch>;
-			};
-
-			bt_link0_codec: codec {
-				sound-dai = <&bt_sco_codec 0>;
-			};
-		};
-	};
+//	bt-sound {
+//		compatible = "simple-audio-card";
+//		#address-cells = <1>;
+//		#size-cells = <0>;
+//		simple-audio-card,name = "PineNote Bluetooth";
+//
+//		simple-audio-card,dai-link@0 {
+//			format = "i2s";
+//			frame-master = <&bt_link0_cpu>;
+//			bitclock-master = <&bt_link0_cpu>;
+//
+//			bt_link0_cpu: cpu {
+//				sound-dai = <&i2s2_2ch>;
+//			};
+//
+//			bt_link0_codec: codec {
+//				sound-dai = <&bt_sco_codec 0>;
+//			};
+//		};
+//	};
 
 	dmic_codec: dmic-codec {
 		compatible = "dmic-codec";
