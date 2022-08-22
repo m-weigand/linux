@@ -64,26 +64,26 @@
 		#sound-dai-cells = <1>;
 	};
 
-	bt-sound {
-		compatible = "simple-audio-card";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		simple-audio-card,name = "PineNote Bluetooth";
-
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			frame-master = <&bt_link0_cpu>;
-			bitclock-master = <&bt_link0_cpu>;
-
-			bt_link0_cpu: cpu {
-				sound-dai = <&i2s2_2ch>;
-			};
-
-			bt_link0_codec: codec {
-				sound-dai = <&bt_sco_codec 0>;
-			};
-		};
-	};
+//	bt-sound {
+//		compatible = "simple-audio-card";
+//		#address-cells = <1>;
+//		#size-cells = <0>;
+//		simple-audio-card,name = "PineNote Bluetooth";
+//
+//		simple-audio-card,dai-link@0 {
+//			format = "i2s";
+//			frame-master = <&bt_link0_cpu>;
+//			bitclock-master = <&bt_link0_cpu>;
+//
+//			bt_link0_cpu: cpu {
+//				sound-dai = <&i2s2_2ch>;
+//			};
+//
+//			bt_link0_codec: codec {
+//				sound-dai = <&bt_sco_codec 0>;
+//			};
+//		};
+//	};
 
 	dmic_codec: dmic-codec {
 		compatible = "dmic-codec";
@@ -341,7 +341,7 @@
 
 &gpu {
 	mali-supply = <&vdd_gpu_npu>;
-	// status = "okay";
+	status = "okay";
 };
 
 &i2c0 {
@@ -670,19 +670,32 @@
 		st,drdy-int-pin = <1>;
 		vdd-supply = <&vcc_3v3>;
 		vddio-supply = <&vcc_3v3>;
+		// if we use panel-reflection=1 from the ebc driver, then the
+		// accelerometer must be rotated
+ 		mount-matrix = "-1", "0", "0",
+ 					   "0", "1", "0",
+ 					   "0", "0", "1";
 	};
 
-	touchscreen@24 {
-		compatible = "cypress,tt21000";
-		hid-descr-addr = <0x1>;
-		reg = <0x24>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
-		pinctrl-names = "default";
-		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
-		vdd-supply = <&vcc_3v3_pmu>;
-	};
+ 	// from pgwipeouts dtsi
+     touchscreen@24 {
+         compatible = "cypress,tma448";
+         hid-descr-addr = <0x1>;
+         reg = <0x24>;
+         interrupt-parent = <&gpio0>;
+         interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+         pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
+         pinctrl-names = "default";
+         reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+         vdd-supply = <&vcc_3v3_pmu>;
+         touchscreen-max-pressure = <46>;
+         touchscreen-min-x = <10>;
+         touchscreen-min-y = <5>;
+         touchscreen-size-x = <1863>;
+         touchscreen-size-y = <1399>;
+         touchscreen-x-mm = <1864>;
+         touchscreen-y-mm = <1400>;
+     };
 };
 
 &i2s1_8ch {
