@@ -6,6 +6,7 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/suspend/rockchip-rk3568.h>
+#include <dt-bindings/usb/pd.h>
 
 #include "rk3566.dtsi"
 
@@ -611,7 +612,7 @@
 		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&tcpc_int_l>;
 		pinctrl-names = "default";
-		status = "disabled";
+		status = "okay";
 	};
 
 	/* TODO: write binding */
