@@ -669,6 +669,11 @@
 		st,drdy-int-pin = <1>;
 		vdd-supply = <&vcc_3v3>;
 		vddio-supply = <&vcc_3v3>;
+		// if we use panel-reflection=1 from the ebc driver, then the
+		// accelerometer must be rotated
+ 		mount-matrix = "-1", "0", "0",
+ 					   "0", "1", "0",
+ 					   "0", "0", "1";
 	};
 
 	touchscreen@24 {
