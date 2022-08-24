@@ -601,6 +601,36 @@
 		clock-names = "aclk", "hclk";
 		iommus = <&vdpu_mmu>;
 		power-domains = <&power RK3568_PD_VPU>;
+
+	rk_rga: rk_rga@fdeb0000 {
+		compatible = "rockchip,rk356x-rga";
+		reg = <0x0 0xfdeb0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_RGA_CORE>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power RK3568_PD_RGA>;
+		/* 754 #define SRST_A_RGA      292 */
+		/* 755 #define SRST_H_RGA      293 */
+		/* 756 #define SRST_RGA_CORE       294 */
+		/* resets = <&cru SRST_RGA_CORE>, <&cru SRST_A_RGA>, <&cru SRST_H_RGA>; */
+		/* reset-names = "core", "axi", "ahb"; */
+		// from the documenation:
+		// dma-coherent;
+		status = "disabled";
+	};
+
+	ebc: ebc@fdec0000 {
+		compatible = "rockchip,rk3568-ebc";
+		reg = <0x0 0xfdec0000 0x0 0x5000>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_EBC>, <&cru DCLK_EBC>;
+		clock-names = "hclk", "dclk";
+		pinctrl-0 = <&ebc_pins>;
+		pinctrl-names = "default";
+		power-domains = <&power RK3568_PD_RGA>;
+		resets = <&cru SRST_H_EBC>, <&cru SRST_D_EBC>;
+		reset-names = "hclk", "dclk";
+		status = "disabled";
 	};
 
 	vdpu_mmu: iommu@fdea0800 {
