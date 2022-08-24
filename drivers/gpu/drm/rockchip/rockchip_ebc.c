@@ -1503,7 +1503,6 @@ static bool rockchip_ebc_blit_fb_r4(const struct rockchip_ebc_ctx *ctx,
 	unsigned int src_pitch = fb->pitches[0];
 	unsigned int y;
 	const void *src;
-	u8 changed = 0;
 	void *dst;
 
 	unsigned width = src_clip->x2 - src_clip->x1;
