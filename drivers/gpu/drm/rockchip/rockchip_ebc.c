@@ -216,6 +216,10 @@ static int bw_threshold = 7;
 module_param(bw_threshold, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_threshold, "black and white threshold");
 
+static int bw_dither_invert = 0;
+module_param(bw_dither_invert, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bw_dither_invert, "invert dither colors in bw mode");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -1486,7 +1490,45 @@ static int rockchip_ebc_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
+static bool rockchip_ebc_blit_fb_r4(const struct rockchip_ebc_ctx *ctx,
+				 const struct drm_rect *dst_clip,
+				 const void *vaddr,
+				 const struct drm_framebuffer *fb,
+				 const struct drm_rect *src_clip,
+				 int adjust_x1,
+				 int adjust_x2
+				 )
+{
+	unsigned int dst_pitch = ctx->gray4_pitch;
+	unsigned int src_pitch = fb->pitches[0];
+	unsigned int start_x, x, y;
+	const void *src;
+	u8 changed = 0;
+	int delta_x;
+	void *dst;
+	int test1, test2;
+
+	unsigned int delta_y;
+	unsigned int start_y;
+	unsigned int end_y2;
+	unsigned width = src_clip->x2 - src_clip->x1;
+	unsigned int x1_bytes = src_clip->x1 / 2;
+	unsigned int x2_bytes = src_clip->x2 / 2;
+	width = x2_bytes - x1_bytes;
+
+	src = vaddr + src_clip->y1 * src_pitch + x1_bytes;
+	dst = ctx->final + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
+
+	for (y = src_clip->y1; y < src_clip->y2; y++) {
+		memcpy(dst, src, width);
+		dst += dst_pitch;
+		src += src_pitch;
+	}
+
+	return true;
+}
+
+static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				 const struct drm_rect *dst_clip,
 				 const void *vaddr,
 				 const struct drm_framebuffer *fb,
@@ -1514,6 +1556,9 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 		{3, 11, 1,  9},
 		{15, 7, 13, 5},
 	};
+
+	u8 dither_low = bw_dither_invert ? 15 : 0;
+	u8 dither_high = bw_dither_invert ? 0 : 15;
 
 	// -2 because we need to go to the beginning of the last line
 	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
@@ -1576,16 +1621,16 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 				// convert to lack and white
 				if (rgb0 > pattern[x & 3][y & 3]){
 				// if (rgb0 >= bw_threshold){
-					rgb0 = 15;
+					rgb0 = dither_high;
 				} else {
-					rgb0 = 0;
+					rgb0 = dither_low;
 				}
 
 				// if (rgb1 >= bw_threshold){
 				if (rgb1 > pattern[(x + 1) & 3][y & 3]){
-					rgb1 = 15;
+					rgb1 = dither_high;
 				} else {
-					rgb1 = 0;
+					rgb1 = dither_low;
 				}
 			}
 
@@ -1680,9 +1725,18 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		}
 
 		if (limit_fb_blits != 0){
-			//printk(KERN_INFO "atomic update: blitting: %i\n", limit_fb_blits);
-			clip_changed_fb = rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
-						  plane_state->fb, &src_clip, adjust_x1, adjust_x2);
+			switch(plane_state->fb->format->format){
+				case DRM_FORMAT_XRGB8888:
+					clip_changed_fb = rockchip_ebc_blit_fb_xrgb8888(
+							ctx, dst_clip, vaddr, plane_state->fb, &src_clip,
+							adjust_x1, adjust_x2);
+					break;
+				case DRM_FORMAT_R4:
+					clip_changed_fb = rockchip_ebc_blit_fb_r4(
+							ctx, dst_clip, vaddr, plane_state->fb, &src_clip,
+							adjust_x1, adjust_x2);
+					break;
+			}
 			// the counter should only reach 0 here, -1 can only be externally set
 			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
 		} else {
@@ -1794,6 +1848,7 @@ static const struct drm_plane_funcs rockchip_ebc_plane_funcs = {
 
 static const u32 rockchip_ebc_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_R4,
 };
 
 static const u64 rockchip_ebc_plane_format_modifiers[] = {
