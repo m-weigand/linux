@@ -12,6 +12,14 @@
 #include <media/v4l2-device.h>
 
 #define RGA_NAME "rockchip-rga"
+// define custom v4l2 control ids so we can control the Y4/dithering options
+// via ioctl
+#define RGA_V4L2_CID_Y400_ENABLE (V4L2_CID_USER_RGA_BASE + 0)
+#define RGA_V4L2_CID_DITHER_DOWN_ENABLE (V4L2_CID_USER_RGA_BASE + 1)
+#define RGA_V4L2_CID_DITHER_DOWN_MODE (V4L2_CID_USER_RGA_BASE + 2)
+#define RGA_V4L2_CID_Y4_ENABLE (V4L2_CID_USER_RGA_BASE + 3)
+#define RGA_V4L2_CID_Y4MAP_LUT0 (V4L2_CID_USER_RGA_BASE + 4)
+#define RGA_V4L2_CID_Y4MAP_LUT1 (V4L2_CID_USER_RGA_BASE + 5)
 
 struct rga_fmt {
 	u32 fourcc;
@@ -58,6 +66,13 @@ struct rga_ctx {
 	u32 vflip;
 	u32 rotate;
 	u32 fill_color;
+
+	u32 y4map_lut0;
+	u32 y4map_lut1;
+	u32 yuv400_enable;
+	u32 y4_enable;
+	u32 dither_down_enable;
+	u32 dither_down_mode;
 };
 
 struct rockchip_rga {

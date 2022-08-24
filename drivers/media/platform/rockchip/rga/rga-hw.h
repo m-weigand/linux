@@ -59,6 +59,8 @@
 #define RGA_PAT_CON 0x015c
 #define RGA_ROP_CON0 0x0160
 #define RGA_ROP_CON1 0x0164
+#define RGA_RST_Y4MAP_LUT0 0x0160
+#define RGA_RST_Y4MAP_LUT1 0x0164
 #define RGA_MASK_BASE 0x0168
 
 #define RGA_MMU_CTRL1 0x016C
@@ -321,8 +323,15 @@ union rga_dst_info {
 		/* [16:18] */
 		unsigned int csc_mode:2;
 		unsigned int csc_clip:1;
+		unsigned int sw_dst_csc_mode_2:1;
+		unsigned int sw_src1_csc_mode:2;
+		unsigned int sw_src1_csc_clip:1;
+		unsigned int reserved_1:1;
+		unsigned int sw_dst_fmt_yuv400_en:1;
+		unsigned int sw_dst_fmt_y4_en:1;
+		unsigned int sw_dst_nn_quantize_en:1;
 		/* [19:31] */
-		unsigned int reserved:13;
+		unsigned int reserved:6;
 	} data;
 };
 
