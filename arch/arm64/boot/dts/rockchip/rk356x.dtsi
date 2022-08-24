@@ -607,7 +607,7 @@
 		/* reset-names = "core", "axi", "ahb"; */
 		// from the documenation:
 		// dma-coherent;
-		status = disabled";
+		status = "disabled";
 	};
 
 	ebc: ebc@fdec0000 {
