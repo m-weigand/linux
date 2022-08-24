@@ -216,6 +216,10 @@ static int bw_threshold = 7;
 module_param(bw_threshold, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_threshold, "black and white threshold");
 
+static int bw_dither_invert = 0;
+module_param(bw_dither_invert, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bw_dither_invert, "invert dither colors in bw mode");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -1515,6 +1519,9 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 		{15, 7, 13, 5},
 	};
 
+	u8 dither_low = bw_dither_invert ? 15 : 0;
+	u8 dither_high = bw_dither_invert ? 0 : 15;
+
 	// -2 because we need to go to the beginning of the last line
 	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
 	delta_y = panel_reflection ? 1: -1;
@@ -1576,16 +1583,16 @@ static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
 				// convert to lack and white
 				if (rgb0 > pattern[x & 3][y & 3]){
 				// if (rgb0 >= bw_threshold){
-					rgb0 = 15;
+					rgb0 = dither_high;
 				} else {
-					rgb0 = 0;
+					rgb0 = dither_low;
 				}
 
 				// if (rgb1 >= bw_threshold){
 				if (rgb1 > pattern[(x + 1) & 3][y & 3]){
-					rgb1 = 15;
+					rgb1 = dither_high;
 				} else {
-					rgb1 = 0;
+					rgb1 = dither_low;
 				}
 			}
 
