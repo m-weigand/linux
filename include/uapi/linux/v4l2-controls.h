@@ -218,6 +218,12 @@ enum v4l2_colorfx {
  * We reserve 16 controls for this driver.
  */
 #define V4L2_CID_USER_ALLEGRO_BASE		(V4L2_CID_USER_BASE + 0x1170)
+/*
+ * The base for RGA driver controls.
+ * We reserve 10 controls for this driver.
+ * hex(int("0x1170", 16) + 10)
+ */
+#define V4L2_CID_USER_RGA_BASE		(V4L2_CID_USER_BASE + 0x117a)
 
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
