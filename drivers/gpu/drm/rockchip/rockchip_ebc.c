@@ -1490,7 +1490,39 @@ static int rockchip_ebc_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static bool rockchip_ebc_blit_fb(const struct rockchip_ebc_ctx *ctx,
+static bool rockchip_ebc_blit_fb_r4(const struct rockchip_ebc_ctx *ctx,
+				 const struct drm_rect *dst_clip,
+				 const void *vaddr,
+				 const struct drm_framebuffer *fb,
+				 const struct drm_rect *src_clip,
+				 int adjust_x1,
+				 int adjust_x2
+				 )
+{
+	unsigned int dst_pitch = ctx->gray4_pitch;
+	unsigned int src_pitch = fb->pitches[0];
+	unsigned int y;
+	const void *src;
+	void *dst;
+
+	unsigned width = src_clip->x2 - src_clip->x1;
+	unsigned int x1_bytes = src_clip->x1 / 2;
+	unsigned int x2_bytes = src_clip->x2 / 2;
+	width = x2_bytes - x1_bytes;
+
+	src = vaddr + src_clip->y1 * src_pitch + x1_bytes;
+	dst = ctx->final + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
+
+	for (y = src_clip->y1; y < src_clip->y2; y++) {
+		memcpy(dst, src, width);
+		dst += dst_pitch;
+		src += src_pitch;
+	}
+
+	return true;
+}
+
+static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				 const struct drm_rect *dst_clip,
 				 const void *vaddr,
 				 const struct drm_framebuffer *fb,
@@ -1687,9 +1719,18 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		}
 
 		if (limit_fb_blits != 0){
-			//printk(KERN_INFO "atomic update: blitting: %i\n", limit_fb_blits);
-			clip_changed_fb = rockchip_ebc_blit_fb(ctx, dst_clip, vaddr,
-						  plane_state->fb, &src_clip, adjust_x1, adjust_x2);
+			switch(plane_state->fb->format->format){
+				case DRM_FORMAT_XRGB8888:
+					clip_changed_fb = rockchip_ebc_blit_fb_xrgb8888(
+							ctx, dst_clip, vaddr, plane_state->fb, &src_clip,
+							adjust_x1, adjust_x2);
+					break;
+				case DRM_FORMAT_R4:
+					clip_changed_fb = rockchip_ebc_blit_fb_r4(
+							ctx, dst_clip, vaddr, plane_state->fb, &src_clip,
+							adjust_x1, adjust_x2);
+					break;
+			}
 			// the counter should only reach 0 here, -1 can only be externally set
 			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
 		} else {
@@ -1801,6 +1842,7 @@ static const struct drm_plane_funcs rockchip_ebc_plane_funcs = {
 
 static const u32 rockchip_ebc_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_R4,
 };
 
 static const u64 rockchip_ebc_plane_format_modifiers[] = {
