@@ -1613,7 +1613,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 
 			if (bw_mode){
 				// convert to lack and white
-				if (rgb0 > pattern[x & 3][y & 3]){
+				if (rgb0 >= pattern[x & 3][y & 3]){
 				// if (rgb0 >= bw_threshold){
 					rgb0 = dither_high;
 				} else {
@@ -1621,7 +1621,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				}
 
 				// if (rgb1 >= bw_threshold){
-				if (rgb1 > pattern[(x + 1) & 3][y & 3]){
+				if (rgb1 >= pattern[(x + 1) & 3][y & 3]){
 					rgb1 = dither_high;
 				} else {
 					rgb1 = dither_low;
