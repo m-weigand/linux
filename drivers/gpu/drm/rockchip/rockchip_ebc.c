@@ -981,6 +981,11 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		if (!wait_for_completion_timeout(&ebc->display_end,
 						 EBC_FRAME_TIMEOUT))
 			drm_err(drm, "Frame %d timed out!\n", frame);
+
+
+		if (kthread_should_stop()) {
+			break;
+		};
 	}
 	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
