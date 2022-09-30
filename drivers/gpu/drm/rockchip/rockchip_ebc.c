@@ -223,6 +223,10 @@ static int bw_dither_invert = 0;
 module_param(bw_dither_invert, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_dither_invert, "invert dither colors in bw mode");
 
+static bool prepare_prev_before_a2 = false;
+module_param(prepare_prev_before_a2, bool, 0644);
+MODULE_PARM_DESC(prepare_prev_before_a2, "Convert prev buffer to bw when switchting to the A2 waveform");
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -1035,6 +1039,38 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	else if (ret)
 		ebc->lut_changed = true;
 
+	/* if we change to A2 in bw mode, then make sure that the prev-buffer is
+	 * converted to bw so the A2 waveform can actually do anything
+	 * */
+	// todo: make optional
+	if (prepare_prev_before_a2){
+		if(ebc->lut_changed && waveform == 1){
+			printk(KERN_INFO "Change to A2 waveform detected, converting prev to bw");
+			u8 pixel1, pixel2;
+			void *src;
+			src = ctx->prev;
+			u8 *sbuf = src;
+			int index;
+
+			for (index=0; index < ctx->gray4_size; index++){
+				pixel1 = *sbuf & 0b00001111;
+				pixel2 = (*sbuf & 0b11110000) >> 4;
+
+				// convert to bw
+				if (pixel1 <= 7)
+					pixel1 = 15;
+				else
+					pixel1 = 0;
+				if (pixel2 <= 7)
+					pixel2 = 15;
+				else
+					pixel2 = 0;
+
+				*sbuf++ = pixel1 & pixel2 << 4;
+			}
+		}
+	}
+
 	/* Wait for the resume to complete before writing any registers. */
 	ret = pm_runtime_resume(dev);
 	if (ret < 0) {
@@ -1568,6 +1604,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 
 	u8 dither_low = bw_dither_invert ? 15 : 0;
 	u8 dither_high = bw_dither_invert ? 0 : 15;
+	/* printk(KERN_INFO "dither low/high: %u %u bw_mode: %i\n", dither_low, dither_high, bw_mode); */
 
 	// -2 because we need to go to the beginning of the last line
 	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
@@ -1622,13 +1659,16 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				// want to keep here
 				// keep 4 higher bits
 				tmp_pixel = *dbuf & 0b11110000;
-				// shift by four pixels to the lower bits
+				// shift by four bits to the lower bits
 				rgb1 = tmp_pixel >> 4;
 			}
 
 			switch (bw_mode){
 				// do nothing for case 0
 				case 1:
+					/* if (y >= 1800){ */
+					/* 	printk(KERN_INFO "bw+dither, before, rgb0 : %i, rgb1: %i\n", rgb0, rgb1); */
+					/* } */
 					// bw + dithering
 					// convert to black and white
 					if (rgb0 >= pattern[x & 3][y & 3]){
@@ -1642,6 +1682,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 					} else {
 						rgb1 = dither_low;
 					}
+					/* printk(KERN_INFO "bw+dither, after, rgb0 : %i, rgb1: %i\n", rgb0, rgb1); */
 					break;
 				case 2:
 					// bw
