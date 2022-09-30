@@ -1552,8 +1552,15 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 	unsigned int start_y;
 	unsigned int end_y2;
 
+	// original pattern
+	/* int pattern[4][4] = { */
+	/* 	{0, 8, 2, 10}, */
+	/* 	{12, 4, 14, 6}, */
+	/* 	{3, 11, 1,  9}, */
+	/* 	{15, 7, 13, 5}, */
+	/* }; */
 	int pattern[4][4] = {
-		{0, 8, 2, 10},
+		{7, 8, 2, 10},
 		{12, 4, 14, 6},
 		{3, 11, 1,  9},
 		{15, 7, 13, 5},
