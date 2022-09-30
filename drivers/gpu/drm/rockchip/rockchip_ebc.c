@@ -208,8 +208,11 @@ static int limit_fb_blits = -1;
 module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
 
-static bool bw_mode = false;
-module_param(bw_mode, bool, S_IRUGO|S_IWUSR);
+// mode = 0: 16-level gray scale
+// mode = 1: 2-level black&white with dithering enabled
+// mode = 2: 2-level black&white, uses bw_threshold
+static int bw_mode = 0;
+module_param(bw_mode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_mode, "black & white mode");
 
 static int bw_threshold = 7;
@@ -1616,21 +1619,39 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				rgb1 = tmp_pixel >> 4;
 			}
 
-			if (bw_mode){
-				// convert to lack and white
-				if (rgb0 >= pattern[x & 3][y & 3]){
-				// if (rgb0 >= bw_threshold){
-					rgb0 = dither_high;
-				} else {
-					rgb0 = dither_low;
-				}
+			switch (bw_mode){
+				// do nothing for case 0
+				case 1:
+					// bw + dithering
+					// convert to black and white
+					if (rgb0 >= pattern[x & 3][y & 3]){
+						rgb0 = dither_high;
+					} else {
+						rgb0 = dither_low;
+					}
 
-				// if (rgb1 >= bw_threshold){
-				if (rgb1 >= pattern[(x + 1) & 3][y & 3]){
-					rgb1 = dither_high;
-				} else {
-					rgb1 = dither_low;
-				}
+					if (rgb1 >= pattern[(x + 1) & 3][y & 3]){
+						rgb1 = dither_high;
+					} else {
+						rgb1 = dither_low;
+					}
+					break;
+				case 2:
+					// bw
+					// convert to black and white
+					if (rgb0 >= bw_threshold){
+						rgb0 = dither_high;
+					} else {
+						rgb0 = dither_low;
+					}
+
+					if (rgb1 >= bw_threshold){
+						rgb1 = dither_high;
+					} else {
+						rgb1 = dither_low;
+					}
+
+					break;
 			}
 
 			gray = rgb0 | rgb1 << 4;
