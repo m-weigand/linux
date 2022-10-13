@@ -679,6 +679,24 @@ static int tps65185_probe(struct i2c_client *client)
 	return 0;
 }
 
+static int __maybe_unused tps65185_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	struct tps65185 *tps;
+	int ret;
+
+	tps = i2c_get_clientdata(client);
+
+	ret = tps65185_set_config(dev, tps);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to set config at resume\n");
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(tps65185_pm, NULL, tps65185_resume);
+
 static const struct of_device_id tps65185_of_match[] = {
 	{ .compatible = "ti,tps65185" },
 	{}
@@ -689,6 +707,7 @@ static struct i2c_driver tps65185_driver = {
 	.probe_new	= tps65185_probe,
 	.driver		= {
 		.name		= "tps65185",
+		.pm		= &tps65185_pm,
 		.of_match_table	= tps65185_of_match,
 	},
 };
