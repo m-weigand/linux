@@ -1,0 +1,6 @@
+# action.yml
+name: 'Pinenote kernel'
+description: 'Compile the mw/rk35/pinenote-next-t1 kernel branch for the Pinenote'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
