@@ -2,7 +2,7 @@
 
 ## Branches
 
-* mw/rk35/pinenote-next-t1 -- Contains all changed merged into one branch that
+* mw/rk35/pinenote-next-t1 -- Contains all changes merged into one branch that
   can be used on the Pinenote.
 * mw/rk35/ebc-drm-v5-modifications-t1 -- Changes to the rockchip_ebc driver
   controlling the Pinenote epd display
