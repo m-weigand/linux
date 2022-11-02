@@ -19,6 +19,7 @@ cd linux
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bindeb-pkg
 
 cd ..
+ls
 mv *.deb linux/pack
 cd ..
 
