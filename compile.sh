@@ -17,12 +17,10 @@ make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_IMAGE=arch/arm64/bo
 cd ..
 rm *dbg*.deb
 # mv linux-image*.deb linux-image_with_uncompressed_image.deb
-rename -n --verbose 's/.deb/_no_compression.deb/' linux-image*
+rename 's/.deb/_no_compression.deb/' linux-image*
+
 cd linux
-
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bindeb-pkg
-
-ls
 mv ../*.deb pack/
 
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
