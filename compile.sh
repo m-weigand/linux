@@ -9,6 +9,15 @@ cd linux
 make clean
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- pinenote_defconfig
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- all
+# build deb package with uncompressed Image
+make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KBUILD_IMAGE=arch/arm64/boot/Image bindeb-pkg
+cd ..
+rm *dbg*.deb
+mv linux-image*.deb linux-image_with_uncompressed_image.deb
+cd linux
+
+make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bindeb-pkg
+
 test -d pack && rm -r pack
 mkdir pack
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
