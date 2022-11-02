@@ -345,7 +345,7 @@
 };
 
 &rk_rga{
-       status = "disabled";
+       status = "okay";
 };
 
 &i2c0 {
