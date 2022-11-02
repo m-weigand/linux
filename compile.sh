@@ -18,6 +18,10 @@ cd linux
 
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bindeb-pkg
 
+cd ..
+mv *.deb linux/pack
+cd ..
+
 test -d pack && rm -r pack
 mkdir pack
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
