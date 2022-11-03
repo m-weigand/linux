@@ -208,8 +208,11 @@ static int limit_fb_blits = -1;
 module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
 
-static bool bw_mode = false;
-module_param(bw_mode, bool, S_IRUGO|S_IWUSR);
+// mode = 0: 16-level gray scale
+// mode = 1: 2-level black&white with dithering enabled
+// mode = 2: 2-level black&white, uses bw_threshold
+static int bw_mode = 0;
+module_param(bw_mode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_mode, "black & white mode");
 
 static int bw_threshold = 7;
@@ -219,6 +222,10 @@ MODULE_PARM_DESC(bw_threshold, "black and white threshold");
 static int bw_dither_invert = 0;
 module_param(bw_dither_invert, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(bw_dither_invert, "invert dither colors in bw mode");
+
+static bool prepare_prev_before_a2 = false;
+module_param(prepare_prev_before_a2, bool, 0644);
+MODULE_PARM_DESC(prepare_prev_before_a2, "Convert prev buffer to bw when switchting to the A2 waveform");
 
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
@@ -981,6 +988,11 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		if (!wait_for_completion_timeout(&ebc->display_end,
 						 EBC_FRAME_TIMEOUT))
 			drm_err(drm, "Frame %d timed out!\n", frame);
+
+
+		if (kthread_should_stop()) {
+			break;
+		};
 	}
 	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
@@ -1026,6 +1038,38 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 		drm_err(drm, "Failed to set LUT waveform: %d\n", ret);
 	else if (ret)
 		ebc->lut_changed = true;
+
+	/* if we change to A2 in bw mode, then make sure that the prev-buffer is
+	 * converted to bw so the A2 waveform can actually do anything
+	 * */
+	// todo: make optional
+	if (prepare_prev_before_a2){
+		if(ebc->lut_changed && waveform == 1){
+			printk(KERN_INFO "Change to A2 waveform detected, converting prev to bw");
+			u8 pixel1, pixel2;
+			void *src;
+			src = ctx->prev;
+			u8 *sbuf = src;
+			int index;
+
+			for (index=0; index < ctx->gray4_size; index++){
+				pixel1 = *sbuf & 0b00001111;
+				pixel2 = (*sbuf & 0b11110000) >> 4;
+
+				// convert to bw
+				if (pixel1 <= 7)
+					pixel1 = 15;
+				else
+					pixel1 = 0;
+				if (pixel2 <= 7)
+					pixel2 = 15;
+				else
+					pixel2 = 0;
+
+				*sbuf++ = pixel1 & pixel2 << 4;
+			}
+		}
+	}
 
 	/* Wait for the resume to complete before writing any registers. */
 	ret = pm_runtime_resume(dev);
@@ -1544,8 +1588,15 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 	unsigned int start_y;
 	unsigned int end_y2;
 
+	// original pattern
+	/* int pattern[4][4] = { */
+	/* 	{0, 8, 2, 10}, */
+	/* 	{12, 4, 14, 6}, */
+	/* 	{3, 11, 1,  9}, */
+	/* 	{15, 7, 13, 5}, */
+	/* }; */
 	int pattern[4][4] = {
-		{0, 8, 2, 10},
+		{7, 8, 2, 10},
 		{12, 4, 14, 6},
 		{3, 11, 1,  9},
 		{15, 7, 13, 5},
@@ -1553,6 +1604,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 
 	u8 dither_low = bw_dither_invert ? 15 : 0;
 	u8 dither_high = bw_dither_invert ? 0 : 15;
+	/* printk(KERN_INFO "dither low/high: %u %u bw_mode: %i\n", dither_low, dither_high, bw_mode); */
 
 	// -2 because we need to go to the beginning of the last line
 	start_y = panel_reflection ? src_clip->y1 : src_clip->y2 - 2;
@@ -1607,25 +1659,47 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 				// want to keep here
 				// keep 4 higher bits
 				tmp_pixel = *dbuf & 0b11110000;
-				// shift by four pixels to the lower bits
+				// shift by four bits to the lower bits
 				rgb1 = tmp_pixel >> 4;
 			}
 
-			if (bw_mode){
-				// convert to lack and white
-				if (rgb0 > pattern[x & 3][y & 3]){
-				// if (rgb0 >= bw_threshold){
-					rgb0 = dither_high;
-				} else {
-					rgb0 = dither_low;
-				}
+			switch (bw_mode){
+				// do nothing for case 0
+				case 1:
+					/* if (y >= 1800){ */
+					/* 	printk(KERN_INFO "bw+dither, before, rgb0 : %i, rgb1: %i\n", rgb0, rgb1); */
+					/* } */
+					// bw + dithering
+					// convert to black and white
+					if (rgb0 >= pattern[x & 3][y & 3]){
+						rgb0 = dither_high;
+					} else {
+						rgb0 = dither_low;
+					}
 
-				// if (rgb1 >= bw_threshold){
-				if (rgb1 > pattern[(x + 1) & 3][y & 3]){
-					rgb1 = dither_high;
-				} else {
-					rgb1 = dither_low;
-				}
+					if (rgb1 >= pattern[(x + 1) & 3][y & 3]){
+						rgb1 = dither_high;
+					} else {
+						rgb1 = dither_low;
+					}
+					/* printk(KERN_INFO "bw+dither, after, rgb0 : %i, rgb1: %i\n", rgb0, rgb1); */
+					break;
+				case 2:
+					// bw
+					// convert to black and white
+					if (rgb0 >= bw_threshold){
+						rgb0 = dither_high;
+					} else {
+						rgb0 = dither_low;
+					}
+
+					if (rgb1 >= bw_threshold){
+						rgb1 = dither_high;
+					} else {
+						rgb1 = dither_low;
+					}
+
+					break;
 			}
 
 			gray = rgb0 | rgb1 << 4;
