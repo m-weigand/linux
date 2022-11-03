@@ -2145,7 +2145,7 @@ static int rockchip_ebc_probe(struct platform_device *pdev)
 
 	ebc = devm_drm_dev_alloc(dev, &rockchip_ebc_drm_driver,
 				 struct rockchip_ebc, drm);
-	ebc->one_full_refresh = true;
+	ebc->do_one_full_refresh = true;
 
 	spin_lock_init(&ebc->refresh_once_lock);
 
