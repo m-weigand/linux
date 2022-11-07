@@ -1057,16 +1057,16 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 				pixel2 = (*sbuf & 0b11110000) >> 4;
 
 				// convert to bw
-				if (pixel1 <= 7)
+				if (pixel1 > 7)
 					pixel1 = 15;
 				else
 					pixel1 = 0;
-				if (pixel2 <= 7)
+				if (pixel2 > 7)
 					pixel2 = 15;
 				else
 					pixel2 = 0;
 
-				*sbuf++ = pixel1 & pixel2 << 4;
+				*sbuf++ = pixel1 | pixel2 << 4;
 			}
 		}
 	}
