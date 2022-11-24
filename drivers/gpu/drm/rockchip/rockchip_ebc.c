@@ -1230,6 +1230,9 @@ static int rockchip_ebc_refresh_thread(void *data)
 				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 			}
 
+			if (ebc->do_one_full_refresh)
+				continue;
+
 			set_current_state(TASK_IDLE);
 			if (list_empty(&ctx->queue) && (!kthread_should_stop()) && (!kthread_should_park())){
 				schedule();
