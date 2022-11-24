@@ -689,8 +689,17 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 
 		/* They do overlap but are are not equal and both not started yet, so
 		 * they can potentially start together */
-		frame_begin = max(frame_begin, other->frame_begin);
-		//printk(KERN_INFO "    setting to: %i\n", frame_begin);
+		if (frame_begin > other->frame_begin){
+			// for some reason we need to begin later than the other region,
+			// which forces us to wait for the region
+			frame_begin = other_end;
+		} else {
+			/* frame_begin = max(frame_begin, other->frame_begin); */
+			// they can begin together
+			frame_begin = other->frame_begin;
+		}
+
+		/* printk(KERN_INFO "    setting to: %i\n", frame_begin); */
 
 		// try to split, otherwise continue
 		if (try_to_split_area(areas, area, other, split_counter, p_next_area, &intersection))
