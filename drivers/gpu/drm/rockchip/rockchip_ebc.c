@@ -386,11 +386,14 @@ static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(u32 width, u32 height)
 	if (!ctx)
 		return NULL;
 
-	ctx->prev = kmalloc(gray4_size, GFP_KERNEL);
-	ctx->next = kmalloc(gray4_size, GFP_KERNEL);
-	ctx->final = kmalloc(gray4_size, GFP_KERNEL);
-	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL);
-	ctx->phase[1] = kmalloc(phase_size, GFP_KERNEL);
+	ctx->prev = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
+	ctx->next = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
+	ctx->final = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
+	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL | GFP_DMA);
+	// todo: investigate if we would need something like __GFP_DMA32 (which
+	// apparently is not allowed...)
+	// https://lkml.org/lkml/2022/4/5/2876
+	ctx->phase[1] = kmalloc(phase_size, GFP_KERNEL | GFP_DMA);
 	if (!ctx->prev || !ctx->next || !ctx->final ||
 	    !ctx->phase[0] || !ctx->phase[1]) {
 		rockchip_ebc_ctx_free(ctx);
