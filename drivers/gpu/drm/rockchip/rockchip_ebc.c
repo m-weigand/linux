@@ -236,6 +236,7 @@ static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
 	struct rockchip_ebc *ebc = dev_get_drvdata(dev->dev);
 
 	if (args->trigger_global_refresh){
+		/* printk(KERN_INFO "[rockchip_ebc] ioctl_trigger_global_refresh"); */
 		spin_lock(&ebc->refresh_once_lock);
 		ebc->do_one_full_refresh = true;
 		spin_unlock(&ebc->refresh_once_lock);
@@ -626,37 +627,37 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 	struct rockchip_ebc_area *other;
 	// by default, begin now
 	u32 frame_begin = current_frame;
-	//printk(KERN_INFO "scheduling area: %i-%i %i-%i (current frame: %i)\n", area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, current_frame);
+	/* printk(KERN_INFO "scheduling area: %i-%i %i-%i (current frame: %i)\n", area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, current_frame); */
 
 	list_for_each_entry(other, areas, list) {
 		struct drm_rect intersection;
 		u32 other_end;
-		//printk(KERN_INFO "    test other area: %i-%i %i-%i\n", other->clip.x1, other->clip.x2, other->clip.y1, other->clip.y2);
+		/* printk(KERN_INFO "    test other area: %i-%i %i-%i (beginning at: %i)\n", other->clip.x1, other->clip.x2, other->clip.y1, other->clip.y2, other->frame_begin); */
 
 		/* Only consider areas before this one in the list. */
 		if (other == area){
-			//printk(KERN_INFO "        other==area\n");
+			/* printk(KERN_INFO "        other==area\n"); */
 			break;
 		}
 
 		/* Skip areas that finish refresh before this area begins. */
 		other_end = other->frame_begin + num_phases;
 		if (other_end <= frame_begin){
-			//printk(KERN_INFO "        other finishes before: %i %i\n", other_end, frame_begin);
+			/* printk(KERN_INFO "        other finishes before: %i %i\n", other_end, frame_begin); */
 			continue;
 		}
 
 		/* If there is no collision, the areas are independent. */
 		intersection = area->clip;
 		if (!drm_rect_intersect(&intersection, &other->clip)){
-			//printk(KERN_INFO "        no collision\n");
+			/* printk(KERN_INFO "        no collision\n"); */
 			continue;
 		}
 
 		/* If the other area already started, wait until it finishes. */
 		if (other->frame_begin < current_frame) {
 			frame_begin = max(frame_begin, other_end);
-			//printk(KERN_INFO "        other already started, setting to %i\n", frame_begin);
+			/* printk(KERN_INFO "        other already started, setting to %i (%i, %i)\n", frame_begin, num_phases, other_end); */
 
 			// so here we would optimally want to split the new area into three
 			// parts that do not overlap with the already-started area, and one
@@ -672,7 +673,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 			if (try_to_split_area(areas, area, other, split_counter, p_next_area, &intersection))
 			{
 				// let the outer loop delete this area
-				//printk(KERN_INFO "        dropping after trying to split\n");
+				/* printk(KERN_INFO "        dropping after trying to split\n"); */
 				return false;
 			} else {
 				continue;
@@ -686,7 +687,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 		if (drm_rect_equals(&area->clip, &intersection)) {
 			drm_dbg(drm, "area %p (" DRM_RECT_FMT ") dropped, inside " DRM_RECT_FMT "\n",
 				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&other->clip));
-			//printk(KERN_INFO "    dropping\n");
+			/* printk(KERN_INFO "    dropping\n"); */
 			return false;
 		}
 
@@ -708,15 +709,16 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 		if (try_to_split_area(areas, area, other, split_counter, p_next_area, &intersection))
 		{
 			// let the outer loop delete this area
-			//printk(KERN_INFO "    dropping after trying to split\n");
+			/* printk(KERN_INFO "    dropping after trying to split\n"); */
 			return false;
 		} else {
+			/* printk(KERN_INFO "    split not successful\n"); */
 			continue;
 		}
 	}
 
 	area->frame_begin = frame_begin;
-	//printk(KERN_INFO "    area scheduled to start at frame: %i (current: %i)\n", frame_begin, current_frame);
+	/* printk(KERN_INFO "    area scheduled to start at frame: %i (current: %i)\n", frame_begin, current_frame); */
 
 	return true;
 }
@@ -907,7 +909,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 
 			/* Copy ctx->final to ctx->next on the first frame. */
 			if (frame_delta == 0) {
-				//printk(KERN_INFO "rockchip partial refresh starting area on frame %i (%i/%i %i/%i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2);
+				/* printk(KERN_INFO "[rockchip-ebc] partial refresh starting area on frame %i (%i/%i %i/%i) (end: %i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, area->frame_begin + last_phase); */
 				local_area_count += (u64) (
 					area->clip.x2 - area->clip.x1) *
 					(area->clip.y2 - area->clip.y1);
@@ -958,7 +960,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") finished on %u\n",
 					area, DRM_RECT_ARG(&area->clip), frame);
 
-				//printk(KERN_INFO "rockchip partial refresh stopping area on frame %i (%i/%i %i/%i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2);
+				/* printk(KERN_INFO "[rockchip-ebc]     partial refresh stopping area on frame %i (%i/%i %i/%i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2); */
 				list_del(&area->list);
 				kfree(area);
 			}
@@ -1023,6 +1025,7 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	dma_addr_t next_handle;
 	dma_addr_t prev_handle;
 	int one_screen_area = 1314144;
+	/* printk(KERN_INFO "[rockchip_ebc] rockchip_ebc_refresh"); */
 
 	/* Resume asynchronously while preparing to refresh. */
 	ret = pm_runtime_get(dev);
@@ -1130,6 +1133,7 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	regmap_write(ebc->regmap, EBC_WIN_MST1,
 		     prev_handle);
 
+	/* printk(KERN_INFO "[rockchip_ebc] ebc_refresh"); */
 	if (global_refresh)
 		rockchip_ebc_global_refresh(ebc, ctx, next_handle, prev_handle);
 	else
@@ -1164,8 +1168,10 @@ static int rockchip_ebc_refresh_thread(void *data)
 	struct rockchip_ebc *ebc = data;
 	struct rockchip_ebc_ctx *ctx;
 	bool one_full_refresh;
+	/* printk(KERN_INFO "[rockchip_ebc] rockchip_ebc_refresh_thread"); */
 
 	while (!kthread_should_stop()) {
+		/* printk(KERN_INFO "[rockchip_ebc] just started"); */
 		/* The context will change each time the thread is unparked. */
 		ctx = to_ebc_crtc_state(READ_ONCE(ebc->crtc.state))->ctx;
 
@@ -1210,11 +1216,13 @@ static int rockchip_ebc_refresh_thread(void *data)
 		}
 
 		while ((!kthread_should_park()) && (!kthread_should_stop())) {
+			/* printk(KERN_INFO "[rockchip_ebc] inner loop"); */
 			spin_lock(&ebc->refresh_once_lock);
 			one_full_refresh = ebc->do_one_full_refresh;
 			spin_unlock(&ebc->refresh_once_lock);
 
 			if (one_full_refresh) {
+				/* printk(KERN_INFO "[rockchip_ebc] got one full refresh"); */
 				spin_lock(&ebc->refresh_once_lock);
 				ebc->do_one_full_refresh = false;
 				spin_unlock(&ebc->refresh_once_lock);
@@ -1229,6 +1237,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 				// Not sure why only the GC16 is able to clear the ghosts from A2
 				// rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
 				rockchip_ebc_refresh(ebc, ctx, true, refresh_waveform);
+				/* printk(KERN_INFO "[rockchip_ebc] got one full refresh done"); */
 			} else {
 				rockchip_ebc_refresh(ebc, ctx, false, default_waveform);
 			}
@@ -1238,7 +1247,9 @@ static int rockchip_ebc_refresh_thread(void *data)
 
 			set_current_state(TASK_IDLE);
 			if (list_empty(&ctx->queue) && (!kthread_should_stop()) && (!kthread_should_park())){
+				/* printk(KERN_INFO "[rockchip_ebc] scheduling"); */
 				schedule();
+				/* printk(KERN_INFO "[rockchip_ebc] scheduling done"); */
 			}
 			__set_current_state(TASK_RUNNING);
 		}
@@ -1760,15 +1771,15 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	ebc_plane_state = to_ebc_plane_state(plane_state);
 	vaddr = ebc_plane_state->base.data[0].vaddr;
 
-	//printk(KERN_INFO "new fb clips\n");
+	/* printk(KERN_INFO "[rockchip-ebc] new fb clips\n"); */
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list) {
 		struct drm_rect *dst_clip = &area->clip;
 		struct drm_rect src_clip = area->clip;
 		int adjust_x1;
 		int adjust_x2;
 		bool clip_changed_fb;
-		//printk(KERN_INFO "    checking from list: (" DRM_RECT_FMT ") \n",
-			/* DRM_RECT_ARG(&area->clip)); */
+		/* printk(KERN_INFO "[rockchip-ebc]    checking from list: (" DRM_RECT_FMT ") \n", */
+		/* 	DRM_RECT_ARG(&area->clip)); */
 
 		/* Convert from plane coordinates to CRTC coordinates. */
 		drm_rect_translate(dst_clip, translate_x, translate_y);
@@ -1824,7 +1835,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
 		} else {
 			// we do not want to blit anything
-			//printk(KERN_INFO "atomic update: not blitting: %i\n", limit_fb_blits);
+			/* printk(KERN_INFO "[rockchip-ebc] atomic update: not blitting: %i\n", limit_fb_blits); */
 			clip_changed_fb = false;
 		}
 
@@ -1838,14 +1849,15 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 			drm_dbg(plane->dev, "area %p (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") skipped\n",
 				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip));
 
+			/* printk(KERN_INFO "[rockchip-ebc]       clip skipped"); */
 			/* Drop the area if the FB didn't actually change. */
 			list_del(&area->list);
 			kfree(area);
 		} else {
 			drm_dbg(plane->dev, "area %p (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") blitted\n",
 				area, DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip));
-			//printk(KERN_INFO "    adding to list: (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") blitted\n",
-				/* DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip)); */
+			/* printk(KERN_INFO "[rockchip-ebc]        adding to list: (" DRM_RECT_FMT ") <= (" DRM_RECT_FMT ") blitted\n", */
+			/* 	DRM_RECT_ARG(&area->clip), DRM_RECT_ARG(&src_clip)); */
 		}
 	}
 
