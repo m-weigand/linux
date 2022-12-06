@@ -641,6 +641,15 @@
 		regulators {
 			v3p3: v3p3 {
 				regulator-name = "v3p3";
+				/* At least pinenote v1.1 and v1.2: Information provided by
+				 * smaeul (Samuel Holland): Allowing this regulator to turn off
+				 * can lead to interrupt storms
+				 * While writing a driver for the TPS65185, I ran into an
+				 * interrupt storm. The reason is that EBC_PMIC_INT is pulled
+				 * up to VCC_EINK1 through R2003. But this is the output of the
+				 * V3P3 switch. So that means the IRQ cannot be enabled while
+				 * V3P3 is turned off.
+				*/
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
