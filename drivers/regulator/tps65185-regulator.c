@@ -660,6 +660,7 @@ static int tps65185_probe(struct i2c_client *client)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to register IIO device\n");
 
+	// disable all INT_EN1 interrupts
 	tps->int_en1 = 0;
 	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN1, tps->int_en1);
 	if (ret)
@@ -679,23 +680,74 @@ static int tps65185_probe(struct i2c_client *client)
 	return 0;
 }
 
+static int __maybe_unused tps65185_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tps65185 *tps;
+	int ret;
+
+	tps = i2c_get_clientdata(client);
+	// set STANDBY of ENABLE reg to 1
+	// pull PWRUP pin low (falling edge)
+	// -> will go into either STANDBY or SLEEP, depending on WAKEUP pin
+	// we want STANDBY, so WAKUP=1
+	gpiod_set_value(tps->wakeup_gpio, 1);
+
+	// initiate standby
+	ret = regmap_write(tps->regmap, TPS65185_REG_ENABLE,
+			TPS65185_ENABLE_STANDBY);
+	if (ret)
+		printk(KERN_ERR "tps65185 suspend: could not set standby bit");
+
+	return 0;
+}
+
 static int __maybe_unused tps65185_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
 	struct tps65185 *tps;
 	int ret;
+	int irq;
+	int irq2;
 
 	tps = i2c_get_clientdata(client);
+
+	// todo: is the location correct here?
+	msleep(TPS65185_WAKEUP_DELAY_MS);
 
 	ret = tps65185_set_config(dev, tps);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to set config at resume\n");
 
+	// disable all INT_EN1 interrupts
+	tps->int_en1 = 0;
+	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN1, tps->int_en1);
+	if (ret)
+		return ret;
+
+	// only enable temperature-is-ready irq
+	tps->int_en2 = TPS65185_INT2_EOC;
+	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN2, tps->int_en2);
+	if (ret)
+		return ret;
+
+	// If I understand correctly regulator TPS65185_REGULATOR_VDRIVE is tied to
+	// the powerup pin - therefore when the ebc resumes the tps65185 is
+	// directly activated. I think its correct to do nothing here any wait.
+	// Similar to the probe function which also puts the pmic into standby
+	/* Power down all rails, but enable control by the powerup GPIO. */
+	ret = regmap_write(tps->regmap, TPS65185_REG_ENABLE,
+			   TPS65185_ENABLE_STANDBY |
+			   TPS65185_ENABLE_VDDH_EN |
+			   TPS65185_ENABLE_VPOS_EN |
+			   TPS65185_ENABLE_VEE_EN |
+			   TPS65185_ENABLE_VNEG_EN);
+
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(tps65185_pm, NULL, tps65185_resume);
+static SIMPLE_DEV_PM_OPS(tps65185_pm, tps65185_suspend, tps65185_resume);
 
 static const struct of_device_id tps65185_of_match[] = {
 	{ .compatible = "ti,tps65185" },
