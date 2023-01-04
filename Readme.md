@@ -11,6 +11,8 @@
 * **mw/rk35/rk356x-rga** -- Changes to the RGA V4L2 driver for the rockchip-rga of
   the Pinenote. The RGA can be used to convert RGB images to Y4 grayscale for
   the EPD display. It also supports dithering to monochrome colors.
-* **mw/rk35/tps65185** -- some fixes/additions to the tps65185 epd pmic driver, mostly related to resume/suspend
+* [mw/rk35/tps65185](https://github.com/m-weigand/linux/tree/mw/rk35/tps65185) -- some fixes/additions to the tps65185 epd pmic driver, mostly related to resume/suspend
+* [lm3630a](https://github.com/m-weigand/linux/tree/lm3630a) Small fixes to the lm3630a backlight led driver
+
 * **master**: this is the main branch forked from torvalds/linux
 
