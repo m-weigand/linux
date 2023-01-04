@@ -33,6 +33,19 @@ properties:
     description: GPIO to use to enable/disable the backlight (HWEN pin).
     maxItems: 1
 
+  boost_use_1mhz:
+    description: |
+      boolean, if present, change the boost converter switching frequency from
+      the default 500 kHz to 1 MHz
+    type: boolean
+
+  boost_frequency_shift:
+    description: |
+      boolean, if present, change boost converter switching frequency fromm 500
+      kHz to 560 kHz or from 1 Mhz to 1.12 Mhz, depending on the boost
+      converter switching frequency
+    type: boolean
+
 required:
   - compatible
   - reg
