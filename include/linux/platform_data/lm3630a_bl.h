@@ -33,6 +33,8 @@ enum lm3630a_ledb_ctrl {
 };
 
 #define LM3630A_MAX_BRIGHTNESS 255
+#define LM3630A_BOOST_USE_1MHZ BIT(0)
+#define LM3630A_BOOST_SHIFT BIT(1)
 /*
  *@leda_label    : optional led a label.
  *@leda_init_brt : led a init brightness. 4~255
@@ -44,6 +46,8 @@ enum lm3630a_ledb_ctrl {
  *@ledb_ctrl     : led b disable, enable linear, enable exponential
  *@pwm_period    : pwm period
  *@pwm_ctrl      : pwm disable, bank a or b, active high or low
+ *@boost_shift_freq : activate the frequency shift of the boost converter
+ *@boost_use_1mhz : switch boost converter frequency from 500kHz to 1MHz
  */
 struct lm3630a_platform_data {
 
@@ -60,6 +64,8 @@ struct lm3630a_platform_data {
 	/* pwm config. */
 	unsigned int pwm_period;
 	enum lm3630a_pwm_ctrl pwm_ctrl;
+	bool boost_shift_freq;
+	bool boost_use_1mhz;
 };
 
 #endif /* __LINUX_LM3630A_H */

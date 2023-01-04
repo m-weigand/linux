@@ -85,6 +85,7 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 {
 	int rval;
 	struct lm3630a_platform_data *pdata = pchip->pdata;
+	int value;
 
 	usleep_range(1000, 2000);
 	/* set Filter Strength Register */
@@ -92,7 +93,13 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 	/* set Cofig. register */
 	rval |= lm3630a_update(pchip, REG_CONFIG, 0x07, pdata->pwm_ctrl);
 	/* set boost control */
-	rval |= lm3630a_write(pchip, REG_BOOST, 0x38);
+	value = 0x38;  // default
+	if (pdata->boost_use_1mhz)
+		value |= LM3630A_BOOST_USE_1MHZ;
+	if (pdata->boost_shift_freq)
+		value |= LM3630A_BOOST_SHIFT;
+	rval |= lm3630a_write(pchip, REG_BOOST, value);
+
 	/* set current A */
 	rval |= lm3630a_update(pchip, REG_I_A, 0x1F, 0x1F);
 	/* set current B */
@@ -532,6 +539,11 @@ static int lm3630a_probe(struct i2c_client *client)
 		pdata->ledb_max_brt = LM3630A_MAX_BRIGHTNESS;
 		pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
 		pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
+
+		pdata->boost_shift_freq = device_property_read_bool(
+			pchip->dev, "boost_frequency_shift");
+		pdata->boost_use_1mhz = device_property_read_bool(
+			pchip->dev, "boost_use_1mhz");
 
 		rval = lm3630a_parse_node(pchip, pdata);
 		if (rval) {
