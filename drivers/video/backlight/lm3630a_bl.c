@@ -201,7 +201,12 @@ static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
 	/* minimum brightness is 0x04 */
-	ret = lm3630a_write(pchip, REG_BRT_A, bl->props.brightness);
+	if (bl->props.state & BL_CORE_SUSPENDED){
+		ret = lm3630a_write(pchip, REG_BRT_A, 0);
+	}
+	else
+		ret = lm3630a_write(pchip, REG_BRT_A, bl->props.brightness);
+
 	if (bl->props.brightness < 0x4)
 		ret |= lm3630a_update(pchip, REG_CTRL, LM3630A_LEDA_ENABLE, 0);
 	else
@@ -276,7 +281,12 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 		goto out_i2c_err;
 	usleep_range(1000, 2000);
 	/* minimum brightness is 0x04 */
-	ret = lm3630a_write(pchip, REG_BRT_B, bl->props.brightness);
+	if (bl->props.state & BL_CORE_SUSPENDED){
+		ret = lm3630a_write(pchip, REG_BRT_B, 0);
+	}
+	else
+		ret = lm3630a_write(pchip, REG_BRT_B, bl->props.brightness);
+
 	if (bl->props.brightness < 0x4)
 		ret |= lm3630a_update(pchip, REG_CTRL, LM3630A_LEDB_ENABLE, 0);
 	else
