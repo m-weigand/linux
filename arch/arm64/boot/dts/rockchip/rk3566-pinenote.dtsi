@@ -570,6 +570,8 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		boost_frequency_shift;
+		/* boost_use_1mhz; */
 
 		led@0 {
 			reg = <0>;
