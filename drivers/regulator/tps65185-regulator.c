@@ -421,6 +421,19 @@ static irqreturn_t tps65185_irq_handler(int irq, void *p)
 						    IIO_EV_DIR_EITHER),
 			       iio_get_time_ns(indio_dev));
 
+	if (!ret && (status1 & TPS65185_INT1_TSD))
+		printk(KERN_ERR "tps65185 TSD Thermal shutdown interrupt detected");
+	if (!ret && (status1 & TPS65185_INT1_HOT))
+		printk(KERN_ERR "tps65185 HOT Thermal shutdown early warning interrupt detected");
+	if (!ret && (status1 & TPS65185_INT1_TMST_HOT))
+		printk(KERN_ERR "tps65185 TMST HOT Thermistor hot interrupt detected");
+	if (!ret && (status1 & TPS65185_INT1_TMST_COLD))
+		printk(KERN_ERR "tps65185 TMST COLD Thermistor hot interrupt detected");
+	if (!ret && (status1 & TPS65185_INT1_UVLO))
+		printk(KERN_ERR "tps65185 UVLO VIN under voltage detect interrupt detected");
+	// ACQC INT
+	// PRGC Int
+
 	ret = regmap_read(tps->regmap, TPS65185_REG_INT2, &status2);
 
 	if (!ret && (status2 & TPS65185_INT2_VB_UV))
