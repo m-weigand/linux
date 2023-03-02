@@ -32,6 +32,8 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/rockchip_ebc_drm.h>
+#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_framebuffer.h>
 
 #define EBC_DSP_START			0x0000
 #define EBC_DSP_START_DSP_OUT_LOW		BIT(31)
@@ -1541,8 +1543,8 @@ static int rockchip_ebc_plane_atomic_check(struct drm_plane *plane,
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -1887,8 +1889,10 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs rockchip_ebc_plane_helper_funcs = {
-	.prepare_fb		= drm_gem_prepare_shadow_fb,
-	.cleanup_fb		= drm_gem_cleanup_shadow_fb,
+	/* .prepare_fb		= drm_gem_prepare_shadow_fb, */
+	/* .cleanup_fb		= drm_gem_cleanup_shadow_fb, */
+	.begin_fb_access = drm_gem_begin_shadow_fb_access,
+	.end_fb_access = drm_gem_end_shadow_fb_access,
 	.atomic_check		= rockchip_ebc_plane_atomic_check,
 	.atomic_update		= rockchip_ebc_plane_atomic_update,
 };
