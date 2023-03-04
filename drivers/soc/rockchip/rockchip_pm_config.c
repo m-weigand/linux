@@ -230,11 +230,11 @@ static int pm_config_probe(struct platform_device *pdev)
 					 apios_suspend,
 					 0);
 
-	if (!of_property_read_u32_array(node,
-					"rockchip,virtual-poweroff",
-					&virtual_poweroff_en, 1) &&
-	    virtual_poweroff_en)
-		pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare;
+	/* if (!of_property_read_u32_array(node, */
+	/* 				"rockchip,virtual-poweroff", */
+	/* 				&virtual_poweroff_en, 1) && */
+	/*     virtual_poweroff_en) */
+	/* 	pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare; */
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++)
 		parse_on_off_regulator(node, i);
