@@ -257,6 +257,11 @@ static const struct regulator_desc tps65185_vdrive_desc = {
 	.enable_val		= TPS65185_ENABLE_ACTIVE,
 	.disable_val		= TPS65185_ENABLE_STANDBY,
 	.poll_enabled_time	= 2500,
+	/* it seems that on the PineNote discharge of the voltage rails takes some
+	 * time - we are running into activating time-outs when the regulator is
+	 * activated shortly after deactivation. From the logs the LOWER
+	 * delay-that-fails time is ca. 300 ms*/
+	.off_on_delay = 400000,
 };
 
 static const struct iio_event_spec tps65185_iio_temp_events[] = {
