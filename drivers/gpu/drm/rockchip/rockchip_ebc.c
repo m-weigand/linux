@@ -1735,6 +1735,28 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 					}
 
 					break;
+				case 3:
+					// downsample to 4 bw values corresponding to the DU4
+					// transitions: 0, 5, 10, 15
+					if (rgb0 < 4){
+						rgb0 = 0;
+					} else if (rgb0  < 8){
+						rgb0 = 5;
+					} else if (rgb0  < 12){
+						rgb0 = 10;
+					} else {
+						rgb0 = 15;
+					}
+
+					if (rgb1 < 4){
+						rgb1 = 0;
+					} else if (rgb1  < 8){
+						rgb1 = 5;
+					} else if (rgb1  < 12){
+						rgb1 = 10;
+					} else {
+						rgb1 = 15;
+					}
 			}
 
 			gray = rgb0 | rgb1 << 4;
