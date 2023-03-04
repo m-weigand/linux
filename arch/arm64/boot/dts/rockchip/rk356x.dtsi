@@ -601,6 +601,7 @@
 		clock-names = "aclk", "hclk";
 		iommus = <&vdpu_mmu>;
 		power-domains = <&power RK3568_PD_VPU>;
+	};
 
 	rk_rga: rk_rga@fdeb0000 {
 		compatible = "rockchip,rk356x-rga";
@@ -631,6 +632,15 @@
 		resets = <&cru SRST_H_EBC>, <&cru SRST_D_EBC>;
 		reset-names = "hclk", "dclk";
 		status = "disabled";
+	};
+
+	eink: eink@fdf00000 {
+	    compatible = "rockchip,rk3568-eink-tcon";
+	    reg = <0x0 0xfdf00000 0x0 0x74>;
+	    clocks = <&cru PCLK_EINK>, <&cru HCLK_EINK>;
+	    clock-names = "pclk", "hclk";
+	    interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+	    status = "disabled";
 	};
 
 	vdpu_mmu: iommu@fdea0800 {
