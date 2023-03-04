@@ -187,7 +187,7 @@ static int tps65185_vdrive_enable_time(struct regulator_dev *rdev)
 {
 	struct tps65185 *tps = rdev_get_drvdata(rdev);
 
-	return tps->total_down_delay_us + tps->total_up_delay_us + 50000;
+	return tps->total_down_delay_us + tps->total_up_delay_us + 50000 + 1000000;
 }
 
 static int tps65185_vdrive_get_status(struct regulator_dev *rdev)
