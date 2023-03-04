@@ -318,7 +318,7 @@
 
 &gpu {
 	mali-supply = <&vdd_gpu_npu>;
-	// status = "okay";
+	status = "okay";
 };
 
 &rk_rga{
@@ -593,6 +593,7 @@
 		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&tcpc_int_l>;
 		pinctrl-names = "default";
+		status = "okay";
 
 		connector {
 			compatible = "usb-c-connector";
@@ -617,7 +618,6 @@
 				};
 			};
 		};
-		status = "okay";
 	};
 
 	/* TODO: write binding */
@@ -701,6 +701,14 @@
 		pinctrl-names = "default";
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 		vdd-supply = <&vcc_3v3_pmu>;
+
+        touchscreen-max-pressure = <46>;
+		touchscreen-min-x = <10>;
+		touchscreen-min-y = <5>;
+		touchscreen-size-x = <1863>;
+		touchscreen-size-y = <1399>;
+		touchscreen-x-mm = <1864>;
+		touchscreen-y-mm = <1400>;
 	};
 };
 
