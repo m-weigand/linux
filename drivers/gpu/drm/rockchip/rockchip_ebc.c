@@ -166,9 +166,17 @@ struct rockchip_ebc {
 	// one screen content: 1872 * 1404 / 2
 	// the array size should probably be set dynamically...
 	char off_screen[1314144];
+	// before suspend we need to save the screen content so we can restore the
+	// prev buffer after resuming
+	char suspend_prev[1314144];
+	char suspend_next[1314144];
 	spinlock_t			refresh_once_lock;
 	// should this go into the ctx?
 	bool do_one_full_refresh;
+	int waveform_at_beggining_of_update;
+	// used to detect when we are suspending so we can do different things to
+	// the ebc display depending on whether we are sleeping or suspending
+	int suspend_was_requested;
 };
 
 static int default_waveform = DRM_EPD_WF_GC16;
@@ -1204,9 +1212,20 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * (and thus prev != next) and when the refresh thread starts
 		 * counting phases for that region.
 		 */
-		memset(ctx->prev, 0xff, ctx->gray4_size);
-		memset(ctx->next, 0xff, ctx->gray4_size);
-		memset(ctx->final, 0xff, ctx->gray4_size);
+		if(ebc->suspend_was_requested == 1){
+			// this means we are coming out from suspend. Reset the buffers to
+			// the before-suspend state
+			memcpy(ctx->prev, ebc->suspend_prev, ctx->gray4_size);
+			memcpy(ctx->final, ebc->suspend_next, ctx->gray4_size);
+			/* memset(ctx->prev, 0xff, ctx->gray4_size); */
+			memset(ctx->next, 0xff, ctx->gray4_size);
+			/* memset(ctx->final, 0xff, ctx->gray4_size); */
+			ebc->do_one_full_refresh = 1;
+		} else {
+			memset(ctx->prev, 0xff, ctx->gray4_size);
+			memset(ctx->next, 0xff, ctx->gray4_size);
+			memset(ctx->final, 0xff, ctx->gray4_size);
+		}
 
 		/* NOTE: In direct mode, the phase buffers are repurposed for
 		 * source driver polarity data, where the no-op value is 0. */
@@ -1267,8 +1286,26 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * Clear the display before disabling the CRTC. Use the
 		 * highest-quality waveform to minimize visible artifacts.
 		 */
-		memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+		memcpy(ebc->suspend_next, ctx->prev, ctx->gray4_size);
+		// WARNING: This check here does not work. if the ebc device was in
+		// runtime suspend at the time of suspending, we get the
+		// suspend_was_requested == 1 too late ...
+		// Therefore, for now do not differ in the way we treat the screen
+		// content. Would be nice to improve this in the future
+		if(ebc->suspend_was_requested){
+			/* printk(KERN_INFO "[rockchip_ebc] we want to suspend, do something"); */
+			memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+		} else {
+			// shutdown/module remove
+			/* printk(KERN_INFO "[rockchip_ebc] normal shutdown/module unload"); */
+			memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+		}
+		/* memcpy(ctx->final, ebc->off_screen, ctx->gray4_size); */
 		rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
+
+		// save the prev buffer in case we need it after resuming
+		memcpy(ebc->suspend_prev, ctx->prev, ctx->gray4_size);
+
 		if (!kthread_should_stop()){
 			kthread_parkme();
 		}
@@ -2077,6 +2114,8 @@ static int __maybe_unused rockchip_ebc_suspend(struct device *dev)
 	struct rockchip_ebc *ebc = dev_get_drvdata(dev);
 	int ret;
 
+	ebc->suspend_was_requested = 1;
+
 	ret = drm_mode_config_helper_suspend(&ebc->drm);
 	if (ret)
 		return ret;
@@ -2212,6 +2251,7 @@ static int rockchip_ebc_probe(struct platform_device *pdev)
 	ebc = devm_drm_dev_alloc(dev, &rockchip_ebc_drm_driver,
 				 struct rockchip_ebc, drm);
 	ebc->do_one_full_refresh = true;
+	ebc->suspend_was_requested = 0;
 
 	spin_lock_init(&ebc->refresh_once_lock);
 
