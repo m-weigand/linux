@@ -1,0 +1,228 @@
+# make dt_binding_check DT_SCHEMA_FILES=tps65185.yaml
+
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/tps65185.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TPS65185x PMIC for E-Paper displays
+
+maintainers:
+  - ??? <???@???.??>
+
+description: |
+  The TPS65185x is a power management IC (PMIC) for EPD displays, providing
+  positive and negative driving rails for EPD displays, as well as a
+  bias voltage (VCOM) line and a separate 3.3 V output. The IC is controlled
+  via I2C.
+
+allOf:
+  - $ref: "regulator.yaml#"
+
+properties:
+  compatible:
+    const: ti,tps65185
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#io-channel-cells':
+    const: 1
+
+  powerup-gpios:
+    description: GPIO to control the vdrive supply
+    maxItems: 1
+
+  pwr_good-gpios:
+    description: GPIO indicating vdrive supply state
+    maxItems: 1
+
+  vcom_ctrl-gpios:
+    description: GPIO to control VCOM voltage output
+    maxItems: 1
+
+  vin-supply:
+    description: Input supply phandle for vin input
+
+  vin3p3-supply:
+    description: Input supply phandle for 3.3 Volt input
+
+  wakeup-gpios:
+    description: GPIO to wake up the device from sleep
+    maxItems: 1
+
+  ti,up-sequence:
+    description: Controls the activation order of the four rails
+      grouped in the vdrive regulator (VDDH, VPOS, VEE, and VNEG)
+      via the UPSEQ0 register.
+      TODO how to document the four numbers and the possible 4 values?
+      nr 1 VNEG 0 -> strobe1, 1 -> strobe2, 2 -> strobe3, 3 -> strobe 4
+      nr 2 VEE 0 -> strobe1, 1 -> strobe2, 2 -> strobe3, 3 -> strobe 4
+      nr 3 VPOS 0 -> strobe1, 1 -> strobe2, 2 -> strobe3, 3 -> strobe 4
+      nr 4 VDDH 0 -> strobe1, 1 -> strobe2, 2 -> strobe3, 3 -> strobe 4
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    maxItems: 4
+
+  ti,up-delay-ms:
+    description: vdrive activation delays for the four phases (strobes).
+      possible delays are 3, 6, 9, 12 [ms]
+    maxItems: 4
+
+  ti,down-sequence:
+    description: TODO same as with up sequence
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    maxItems: 4
+
+  ti,down-delay-ms:
+    description: TODO same as with up delays
+    maxItems: 4
+
+  regulators:
+    type: object
+    description: List of regulators and its properties
+
+    properties:
+      "v3p3":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          3.3 V output regulator
+          TODO How do we include the requirement for the PineNote to always
+          turn this on? Also, I think the driver at some locations assumes
+          this regulator stays on.
+
+        properties:
+          regulator-name: true
+          regulator-always-on: true
+          regulator-boot-on: true
+          regulator-min-microvolt: true
+          regulator-max-microvolt: true
+
+        required:
+          - regulator-name
+          - regulator-min-microvolt
+          - regulator-max-microvolt
+
+        additionalProperties: false
+
+      "vcom":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          VCOM voltage (back-plane bias for the epd panel) output regulator,
+          -5.11 V to 0 V. (The minus sign is dropped here to conform to the
+          regulator framework).
+          TODO Make sure to note that by default the vcom value should be read
+          by the driver from the internal memory, but can also be specified
+          here.
+
+        properties:
+          regulator-name: true
+          regulator-always-on: true
+          regulator-boot-on: true
+
+        required:
+          - regulator-name
+
+        additionalProperties: false
+
+      "vdrive":
+        type: object
+        $ref: regulator.yaml#
+        description:
+          Controls the power rails (VDDH, VPOS, VEE, and VNEG).
+
+        properties:
+          regulator-name: true
+          regulator-always-on: true
+          # TODO: this should probably be false. It works, but should not be
+          # the default as constantly driving vdrive can damage the epd
+          # display
+          regulator-boot-on: true
+          # TODO: This is a virtual regulator in the sense that it groups four
+          # different voltages whose voltages we do not have (direct) control
+          # over. Are these values required?
+          regulator-min-microvolt: true
+          regulator-max-microvolt: true
+
+        required:
+          - regulator-name
+          - regulator-min-microvolt
+          - regulator-max-microvolt
+
+        additionalProperties: false
+
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - powerup-gpios
+  - pwr_good-gpios
+  - vcom_ctrl-gpios
+  - vin-supply
+  - vin3p3-supply
+  - wakeup-gpios
+  - ti,up-sequence
+  - ti,up-delay-ms
+  - ti,down-sequence
+  - ti,down-delay-ms
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      ebc_pmic: pmic@68 {
+        compatible = "ti,tps65185";
+        reg = <0x68>;
+        interrupt-parent = <&gpio3>;
+        interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+        #io-channel-cells = <1>;
+        pinctrl-0 = <&ebc_pmic_pins>;
+        pinctrl-names = "default";
+        powerup-gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
+        pwr_good-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+        vcom_ctrl-gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
+        vin-supply = <&vcc_bat>;
+        vin3p3-supply = <&vcc_3v3>;
+        wakeup-gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
+        ti,up-sequence = <1>, <0>, <2>, <3>;
+        ti,up-delay-ms = <3>, <3>, <3>, <3>;
+        ti,down-sequence = <2>, <3>, <1>, <0>;
+        ti,down-delay-ms = <3>, <6>, <6>, <6>;
+
+        regulators {
+          v3p3: v3p3 {
+            regulator-name = "v3p3";
+            regulator-always-on;
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+          };
+
+          vcom: vcom {
+            regulator-name = "vcom";
+            /* voltage range is board-specific */
+            /* regulator-min-microvolt = <930000>; */
+            /* regulator-max-microvolt = <930000>; */
+          };
+
+          vdrive: vdrive {
+            regulator-name = "vdrive";
+            regulator-min-microvolt = <15000000>;
+            regulator-max-microvolt = <15000000>;
+          };
+        };
+      };
+    };
