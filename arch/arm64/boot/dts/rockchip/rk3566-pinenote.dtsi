@@ -370,11 +370,20 @@
 		vcc8-supply = <&vcc_sys>;
 		vcc9-supply = <&dcdc_boost>;
 
+		// used for  kernel 5.17
 		battery {
 			monitored-battery = <&battery_cell>;
 			rockchip,resistor-sense-micro-ohms = <10000>;
 			rockchip,sleep-enter-current-microamp = <150000>;
 			rockchip,sleep-filter-current-microamp = <100000>;
+		};
+
+		// newer kernels (at least >= 6.2)
+		rk817_charger: charger {
+		    monitored-battery = <&battery_cell>;
+		    rockchip,resistor-sense-micro-ohms = <10000>;
+		        rockchip,sleep-enter-current-microamp = <150000>;
+		    rockchip,sleep-filter-current-microamp = <100000>;
 		};
 
 		regulators {
