@@ -886,6 +886,10 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		return error;
 	}
 
+	if (device_property_read_bool(dev, "wakeup-source")) {
+		device_init_wakeup(dev, true);
+	}
+
 	error = cyttsp5_startup(ts);
 	if (error) {
 		dev_err(ts->dev, "Fail initial startup r=%d\n", error);
