@@ -83,7 +83,7 @@ examples:
             pinctrl-names = "default";
             pinctrl-0 = <&tp_reset_ds203>;
             interrupt-parent = <&pio>;
-            interrupts = <1 5 IRQ_TYPE_LEVEL_LOW>;
+            interrupts = <1 5 IRQ_TYPE_EDGE_FALLING>;
             reset-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>;
             vdd-supply = <&reg_touch>;
 
