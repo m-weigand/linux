@@ -393,11 +393,20 @@
 		vcc8-supply = <&vcc_sys>;
 		vcc9-supply = <&dcdc_boost>;
 
+		// used for  kernel 5.17
 		battery {
 			monitored-battery = <&battery_cell>;
 			rockchip,resistor-sense-micro-ohms = <10000>;
 			rockchip,sleep-enter-current-microamp = <150000>;
 			rockchip,sleep-filter-current-microamp = <100000>;
+		};
+
+		// newer kernels (at least >= 6.2)
+		rk817_charger: charger {
+		    monitored-battery = <&battery_cell>;
+		    rockchip,resistor-sense-micro-ohms = <10000>;
+		        rockchip,sleep-enter-current-microamp = <150000>;
+		    rockchip,sleep-filter-current-microamp = <100000>;
 		};
 
 		regulators {
@@ -721,7 +730,7 @@
 		hid-descr-addr = <0x1>;
 		reg = <0x24>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA6 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
 		pinctrl-names = "default";
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
