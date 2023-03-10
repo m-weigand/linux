@@ -8,9 +8,15 @@ RUN apt -y install gcc-aarch64-linux-gnu
 RUN apt -y install rsync rename
 
 RUN mkdir /root/kernel
+
 COPY compile.sh /root/kernel/
 
-ENTRYPOINT /root/kernel/compile.sh
+RUN mkdir /root/kernel_v6.2
+COPY compile_v6-2.sh /root/kernel_v6.2/
+
+COPY compile_all.sh /root/
+
+ENTRYPOINT /root/compile_all.sh
 
 # WORKDIR /root/mesa
 # CMD /root/mesa/compile.sh

@@ -1,7 +1,7 @@
 on:
-  push:
-    branches:
-      - 'mw/rk35/pinenote-next-t1'
+  # push:
+    # branches:
+    #   - 'mw/rk35/pinenote-next-t1'
   workflow_dispatch:
 
 jobs:
@@ -16,3 +16,7 @@ jobs:
         with:
           name: pinenote_kernel_modules_dtb
           path: /home/runner/work/_temp/_github_home/pack/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pinenote_kernel_module_dtb_v6.2
+          path: /home/runner/work/_temp/_github_home/pack_v6.2/
