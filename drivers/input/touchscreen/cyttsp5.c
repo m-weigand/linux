@@ -508,15 +508,66 @@ static int cyttsp5_get_sysinfo_regs(struct cyttsp5 *ts)
 	struct cyttsp5_sensing_conf_data_dev *scd_dev =
 		(struct cyttsp5_sensing_conf_data_dev *)
 		&ts->response_buf[HID_SYSINFO_SENSING_OFFSET];
+	u32 tmp;
 
 	cyttsp5_si_get_btn_data(ts);
 
 	scd->max_tch = scd_dev->max_num_of_tch_per_refresh_cycle;
-	scd->res_x = get_unaligned_le16(&scd_dev->res_x);
-	scd->res_y = get_unaligned_le16(&scd_dev->res_y);
-	scd->max_z = get_unaligned_le16(&scd_dev->max_z);
-	scd->len_x = get_unaligned_le16(&scd_dev->len_x);
-	scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+
+	if (scd->max_tch == 0) {
+		dev_dbg(ts->dev, "Max touch points cannot be zero\n");
+		scd->max_tch = 2;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-x", &tmp))
+		scd->res_x = get_unaligned_le16(&scd_dev->res_x);
+	else
+		scd->res_x = tmp;
+
+	if (scd->res_x == 0) {
+		dev_err(ts->dev, "ABS_X cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-y", &tmp))
+		scd->res_y = get_unaligned_le16(&scd_dev->res_y);
+	else
+		scd->res_y = tmp;
+
+	if (scd->res_y == 0) {
+		dev_err(ts->dev, "ABS_Y cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-max-pressure", &tmp))
+		scd->max_z = get_unaligned_le16(&scd_dev->max_z);
+	else
+		scd->max_z = tmp;
+
+	if (scd->max_z == 0) {
+		dev_err(ts->dev, "ABS_PRESSURE cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-x-mm", &tmp))
+		scd->len_x = get_unaligned_le16(&scd_dev->len_x);
+	else
+		scd->len_x = tmp;
+
+	if (scd->len_x == 0) {
+		dev_dbg(ts->dev, "Touchscreen size x cannot be zero\n");
+		scd->len_x = scd->res_x + 1;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-y-mm", &tmp))
+		scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+	else
+		scd->len_y = tmp;
+
+	if (scd->len_y == 0) {
+		dev_dbg(ts->dev, "Touchscreen size y cannot be zero\n");
+		scd->len_y = scd->res_y + 1;
+	}
 
 	return 0;
 }
@@ -700,6 +751,58 @@ static int cyttsp5_deassert_int(struct cyttsp5 *ts)
 	return -EINVAL;
 }
 
+static int cyttsp5_clear_int(struct cyttsp5 *ts)
+{
+	// clear the device message queue after resuming. Otherwise the device will
+	// keep the interrupt line on LOW, thereby preventing any new irqs to be
+	// detecting on the falling edge.
+	// It would also be ok to just call cyttsp5_read once, which would trigger
+	// the device to signal the next frame/message, which in turn would be
+	// handled by the irq handler.
+	// However, we do not want these events (from the past) to be actually fed
+	// into the input subsystem (i.e., we do not want to trigger touch events
+	// that took place during sleep). At the moment this works because the
+	// touch input device associated with the cyttsp5 driver is still in
+	// suspend until the cyttsp5 driver is finished waking up, and by only
+	// reading once we effectively race to clear the old touch events faster
+	// than the input device comes up. Works for me on the PineNote, but
+	// seems...fragile.
+	u16 size;
+	u8 buf[2];
+	int error;
+	u8 cmd[CY_MAX_INPUT];
+
+	// we only care about the size field
+	memset(cmd, 0, 2);
+	error = cyttsp5_read(ts, cmd, CY_MAX_INPUT);
+	if (error){
+		printk(KERN_ERR "cyttsp5_clear_int has problems reading from the device\n");
+		// error code?
+		return -1;
+	}
+
+	size = get_unaligned_le16(&cmd[0]);
+
+	int counter = 0;
+	while((size > 2) && (counter < 20)){
+		memset(cmd, 0, 2);
+		error = cyttsp5_read(ts, cmd, CY_MAX_INPUT);
+		if (error){
+			printk(KERN_ERR "cyttsp5_clear_int has problems reading from the device\n");
+			return -1;
+		}
+
+		size = get_unaligned_le16(&cmd[0]);
+		counter++;
+
+		// I'm not sure this is really required, but sometimes the device takes
+		// some time to trigger the next interrupt/frame of stored events
+		msleep(10);
+	}
+
+	return 0;
+}
+
 static int cyttsp5_fill_all_touch(struct cyttsp5 *ts)
 {
 	struct cyttsp5_sysinfo *si = &ts->sysinfo;
@@ -834,6 +937,10 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 		return error;
 	}
 
+	if (device_property_read_bool(dev, "wakeup-source")) {
+		device_init_wakeup(dev, true);
+	}
+
 	error = cyttsp5_startup(ts);
 	if (error) {
 		dev_err(ts->dev, "Fail initial startup r=%d\n", error);
@@ -875,6 +982,7 @@ static int cyttsp5_i2c_probe(struct i2c_client *client)
 
 static const struct of_device_id cyttsp5_of_match[] = {
 	{ .compatible = "cypress,tt21000", },
+	{ .compatible = "cypress,tma448", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cyttsp5_of_match);
@@ -885,10 +993,39 @@ static const struct i2c_device_id cyttsp5_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cyttsp5_i2c_id);
 
+static int __maybe_unused cyttsp5_suspend(struct device *dev)
+{
+	/* struct cyttsp5 *ts = dev_get_drvdata(dev); */
+	/* struct i2c_client *client = to_i2c_client(dev); */
+
+	// do we need to do something here? disable the irq?
+
+	return 0;
+}
+
+static int __maybe_unused cyttsp5_resume(struct device *dev)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	int error;
+
+	disable_irq(client->irq);
+
+	error = cyttsp5_clear_int(ts);
+	if (error) {
+		printk(KERN_ERR "cyttsp5 driver could not de-assert the interrupt line: err:%d\n", error);
+    }
+	enable_irq(client->irq);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cyttsp5_pm, cyttsp5_suspend, cyttsp5_resume);
+
 static struct i2c_driver cyttsp5_i2c_driver = {
 	.driver = {
 		.name = CYTTSP5_NAME,
 		.of_match_table = cyttsp5_of_match,
+		.pm		= &cyttsp5_pm,
 	},
 	.probe_new = cyttsp5_i2c_probe,
 	.id_table = cyttsp5_i2c_id,
