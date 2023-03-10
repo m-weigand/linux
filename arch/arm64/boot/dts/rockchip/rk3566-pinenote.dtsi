@@ -705,7 +705,7 @@
 		hid-descr-addr = <0x1>;
 		reg = <0x24>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA6 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
 		pinctrl-names = "default";
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
