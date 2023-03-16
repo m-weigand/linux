@@ -674,12 +674,13 @@ static int tps65185_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret, "Failed to register IIO device\n");
 
 	// disable all INT_EN1 interrupts
-	tps->int_en1 = 0;
+	tps->int_en1 = 0xff;
 	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN1, tps->int_en1);
 	if (ret)
 		return ret;
 
-	tps->int_en2 = TPS65185_INT2_EOC;
+	//tps->int_en2 = TPS65185_INT2_EOC;
+	tps->int_en2 = 0xff;
 	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN2, tps->int_en2);
 	if (ret)
 		return ret;
