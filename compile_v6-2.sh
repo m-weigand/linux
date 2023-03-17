@@ -15,8 +15,8 @@ mkdir pack
 make clean
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- pinenote_defconfig
 # build deb package with uncompressed Image
-make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" KBUILD_IMAGE=arch/arm64/boot/Image deb-pkg
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- all
+make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" KBUILD_IMAGE=arch/arm64/boot/Image bindeb-pkg
 cd ..
 ls
 rm *dbg*.deb
@@ -24,7 +24,7 @@ rm *dbg*.deb
 rename 's/.deb/_no_compression.deb/' linux-image*
 
 cd linux
-make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" deb-pkg
+make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" bindeb-pkg
 mv ../*.deb pack/
 
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
