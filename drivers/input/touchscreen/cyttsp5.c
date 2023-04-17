@@ -38,6 +38,11 @@
 #define HID_OUTPUT_BL_LAUNCH_APP_SIZE		11
 #define HID_OUTPUT_GET_SYSINFO			0x2
 #define HID_OUTPUT_GET_SYSINFO_SIZE		5
+#define HID_OUTPUT_GET_CONFIG_ROW_SIZE		0x21
+#define HID_OUTPUT_READ_CONF_BLOCK		0x22
+#define HID_OUTPUT_SUSPEND_SCANNING		3
+#define HID_OUTPUT_SUSPEND_SCANNING_TIMEOUT_MS	1000
+#define HID_OUTPUT_RESUME_SCANNING		4
 #define HID_OUTPUT_MAX_CMD_SIZE			12
 
 #define HID_DESC_REG				0x1
@@ -115,6 +120,9 @@
 #define SET_CMD_OPCODE(byte, opcode) SET_CMD_LOW(byte, opcode)
 #define SET_CMD_REPORT_TYPE(byte, type) SET_CMD_HIGH(byte, ((type) << 4))
 #define SET_CMD_REPORT_ID(byte, id) SET_CMD_LOW(byte, id)
+
+#define CY_TCH_PARM_EBID			0
+#define CY_DATA_ROW_SIZE			128
 
 /* System Information interface definitions */
 struct cyttsp5_sensing_conf_data_dev {
@@ -790,6 +798,139 @@ static int fill_tch_abs(struct cyttsp5_tch_abs_params *tch_abs, int report_size,
 	return 0;
 }
 
+static int cyttsp5_hid_output_suspend_scanning(struct cyttsp5 *ts)
+{
+	int rc;
+	rc = cyttsp5_hid_output_app_write_and_wait(
+			ts, HID_OUTPUT_SUSPEND_SCANNING, NULL, 0,
+			HID_OUTPUT_SUSPEND_SCANNING_TIMEOUT_MS);
+	if (rc) {
+		dev_err(ts->dev, "Failed to suspend scanning %d\n", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
+static int cyttsp5_hid_output_resume_scanning(struct cyttsp5 *ts)
+{
+	int rc;
+	rc = cyttsp5_hid_output_app_write_and_wait(
+			ts, HID_OUTPUT_RESUME_SCANNING, NULL, 0, 0);
+	if (rc) {
+		dev_err(ts->dev, "Failed to resume scanning %d\n", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
+static int cyttsp5_hid_output_get_config_row_size(struct cyttsp5 *ts,
+						  u16 *row_size)
+{
+	int rc;
+	rc = cyttsp5_hid_output_app_write_and_wait(
+			ts, HID_OUTPUT_GET_CONFIG_ROW_SIZE, NULL, 0, 0);
+	if (rc) {
+		dev_err(ts->dev, "Failed to get config row size %d\n", rc);
+		return rc;
+	}
+
+	*row_size = get_unaligned_le16(ts->response_buf + 5);
+	return 0;
+}
+
+static int cyttsp5_hid_output_read_conf_block(struct cyttsp5 *ts,
+					      u16 row_number, u16 length,
+					      u8 ebid, u8 *read_buf, u16 *crc)
+{
+	int rc;
+	int read_ebid;
+	int read_length;
+	int status;
+	u8 write_buf[5];
+
+	put_unaligned_le16(row_number, write_buf);
+	put_unaligned_le16(length, write_buf + 2);
+	write_buf[4] = ebid;
+
+	rc = cyttsp5_hid_output_app_write_and_wait(ts,
+			HID_OUTPUT_READ_CONF_BLOCK, write_buf,
+			ARRAY_SIZE(write_buf), 0);
+	if (rc) {
+		dev_err(ts->dev, "Failed to read config block row=%d\n",
+			row_number);
+		return rc;
+	}
+
+	status = ts->response_buf[5];
+	if (status)
+		return -EINVAL;
+
+	read_ebid = ts->response_buf[6];
+	if ((read_ebid != ebid) || (ts->response_buf[9] != 0)) {
+		return -EPROTO;
+	}
+
+	read_length = get_unaligned_le16(ts->response_buf + 7);
+	if (length > read_length)
+		length = read_length;
+
+	memcpy(read_buf, ts->response_buf + 10, min(length, read_length));
+	*crc = get_unaligned_le16(ts->response_buf + read_length + 10);
+
+	return 0;
+}
+
+static ssize_t cyttsp5_sysfs_dump_config(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	int rc;
+	u8 read_buf[CY_DATA_ROW_SIZE];
+	size_t cfg_size, bytes_written = 0, read_len = 0;
+	u16 crc;
+
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+
+	rc = cyttsp5_hid_output_suspend_scanning(ts);
+	if (rc)
+		return rc;
+
+	rc = cyttsp5_hid_output_read_conf_block(ts, 0, CY_DATA_ROW_SIZE,
+			CY_TCH_PARM_EBID, read_buf, &crc);
+	if (rc) {
+		dev_err(dev, "Failed to read first config block %d", rc);
+		goto resume_scanning;
+	}
+
+	cfg_size = get_unaligned_le16(read_buf) + 2; // CRC
+	read_len = min(CY_DATA_ROW_SIZE, cfg_size);
+	while (bytes_written < cfg_size) {
+		memcpy(buf + bytes_written, read_buf, read_len);
+		bytes_written += read_len;
+		read_len = min(CY_DATA_ROW_SIZE, cfg_size - bytes_written);
+		if (read_len > 0) {
+			rc = cyttsp5_hid_output_read_conf_block(ts,
+					bytes_written / CY_DATA_ROW_SIZE,
+					read_len, CY_TCH_PARM_EBID, read_buf,
+					&crc);
+		}
+		if (rc) {
+			dev_err(dev, "Failed to read config block %ld, config"
+					" size=%ld rc=%d",
+					bytes_written / CY_DATA_ROW_SIZE,
+					cfg_size, rc);
+			goto resume_scanning;
+		}
+	}
+resume_scanning:
+	cyttsp5_hid_output_resume_scanning(ts);
+
+	return bytes_written;
+}
+
+static DEVICE_ATTR(dump_config, S_IRUGO, cyttsp5_sysfs_dump_config, NULL);
+
 static irqreturn_t cyttsp5_handle_irq(int irq, void *handle)
 {
 	struct cyttsp5 *ts = handle;
@@ -910,6 +1051,15 @@ static int cyttsp5_startup(struct cyttsp5 *ts)
 	return error;
 }
 
+static struct attribute *cyttsp5_attrs[] = {
+	&dev_attr_dump_config.attr,
+	NULL
+};
+
+static const struct attribute_group cyttsp5_attr_group = {
+	.attrs	= cyttsp5_attrs,
+};
+
 static void cyttsp5_cleanup(void *data)
 {
 	struct cyttsp5 *ts = data;
@@ -953,6 +1103,13 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	error = regulator_bulk_enable(ARRAY_SIZE(ts->supplies), ts->supplies);
 	if (error) {
 		dev_err(ts->dev, "Failed to enable regulators, error %d\n", error);
+		return error;
+	}
+
+	error = sysfs_create_group(&dev->kobj, &cyttsp5_attr_group);
+	if (error) {
+		dev_err(dev,
+			"Failed to create sysfs attributes, err: %d\n", error);
 		return error;
 	}
 
