@@ -510,6 +510,52 @@ static int cyttsp5_validate_cmd_response(struct cyttsp5 *ts, u8 code)
 	return 0;
 }
 
+static int cyttsp5_hid_output_app_write_and_wait(struct cyttsp5 *ts,
+						 u8 cmd_code, u8* data,
+						 ssize_t data_len,
+						 u16 timeout_ms)
+{
+	int rc;
+	u8 cmd[HID_OUTPUT_MAX_CMD_SIZE];
+
+	if (6 + data_len > HID_OUTPUT_MAX_CMD_SIZE)
+		return -E2BIG;
+
+	cmd[0] = (HID_OUTPUT_REG >> 8) & 0xFF;
+	put_unaligned_le16(5 + data_len, cmd + 1);
+	cmd[3] = HID_APP_OUTPUT_REPORT_ID;
+	cmd[4] = 0x0; /* Reserved */
+	cmd[5] = cmd_code;
+
+	if (data_len)
+		memcpy(cmd + 6, data, data_len);
+
+	rc = regmap_bulk_write(ts->regmap, HID_OUTPUT_REG & 0xFF, cmd, 6 + data_len);
+	if (rc) {
+		dev_err(ts->dev, "Failed to write command %d\n", rc);
+		return rc;
+	}
+
+	if (!timeout_ms)
+		timeout_ms = CY_HID_OUTPUT_TIMEOUT_MS;
+
+	rc = wait_for_completion_interruptible_timeout(&ts->cmd_done,
+			msecs_to_jiffies(timeout_ms));
+	if (rc <= 0) {
+		dev_err(ts->dev, "HID output cmd execution timed out\n");
+		rc = -ETIMEDOUT;
+		return rc;
+	}
+
+	rc = cyttsp5_validate_cmd_response(ts, cmd_code);
+	if (rc) {
+		dev_err(ts->dev, "Validation of the response failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 static void cyttsp5_si_get_btn_data(struct cyttsp5 *ts)
 {
 	struct cyttsp5_sysinfo *si = &ts->sysinfo;
