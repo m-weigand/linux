@@ -736,13 +736,13 @@
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 		vdd-supply = <&vcc_3v3_pmu>;
 
-        touchscreen-max-pressure = <46>;
-		touchscreen-min-x = <10>;
-		touchscreen-min-y = <5>;
-		touchscreen-size-x = <1863>;
-		touchscreen-size-y = <1399>;
-		touchscreen-x-mm = <1864>;
-		touchscreen-y-mm = <1400>;
+        /* touchscreen-max-pressure = <46>; */
+		/* touchscreen-min-x = <10>; */
+		/* touchscreen-min-y = <5>; */
+		/* touchscreen-size-x = <1863>; */
+		/* touchscreen-size-y = <1399>; */
+		/* touchscreen-x-mm = <1864>; */
+		/* touchscreen-y-mm = <1400>; */
 	};
 };
 
