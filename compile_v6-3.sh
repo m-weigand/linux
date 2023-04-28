@@ -3,7 +3,7 @@
 cd /root/kernel_v6.3
 
 if [ ! -d linux ]; then
-	git clone --depth 1 --branch pinenote_6-3_v1 https://github.com/m-weigand/linux
+	git clone --depth 1 --branch branch_pinenote_6-3_v1 https://github.com/m-weigand/linux
 fi
 
 cd linux
