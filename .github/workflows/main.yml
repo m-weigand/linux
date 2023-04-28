@@ -20,3 +20,7 @@ jobs:
         with:
           name: pinenote_kernel_module_dtb_v6.2
           path: /home/runner/work/_temp/_github_home/pack_v6.2/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pinenote_kernel_module_dtb_v6.3
+          path: /home/runner/work/_temp/_github_home/pack_v6.3/
