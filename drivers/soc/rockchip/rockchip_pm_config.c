@@ -161,7 +161,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	u32 sleep_debug_en = 0;
 	u32 apios_suspend = 0;
 	u32 virtual_poweroff_en = 0;
-	enum of_gpio_flags flags;
+	/* enum of_gpio_flags flags; */
 	int i = 0;
 	int length;
 
@@ -199,21 +199,21 @@ static int pm_config_probe(struct platform_device *pdev)
 					 pwm_regulator_config,
 					 0);
 
-	length = of_gpio_named_count(node, "rockchip,power-ctrl");
+	/* length = of_gpio_named_count(node, "rockchip,power-ctrl"); */
 
-	if (length > 0 && length < 10) {
-		for (i = 0; i < length; i++) {
-			gpio_temp[i] = of_get_named_gpio_flags(node,
-							     "rockchip,power-ctrl",
-							     i,
-							     &flags);
-			if (!gpio_is_valid(gpio_temp[i]))
-				break;
-			sip_smc_set_suspend_mode(GPIO_POWER_CONFIG,
-						 i,
-						 gpio_temp[i]);
-		}
-	}
+	/* if (length > 0 && length < 10) { */
+	/* 	for (i = 0; i < length; i++) { */
+	/* 		gpio_temp[i] = of_get_named_gpio_flags(node, */
+	/* 						     "rockchip,power-ctrl", */
+	/* 						     i, */
+	/* 						     &flags); */
+	/* 		if (!gpio_is_valid(gpio_temp[i])) */
+	/* 			break; */
+	/* 		sip_smc_set_suspend_mode(GPIO_POWER_CONFIG, */
+	/* 					 i, */
+	/* 					 gpio_temp[i]); */
+	/* 	} */
+	/* } */
 	sip_smc_set_suspend_mode(GPIO_POWER_CONFIG, i, PM_INVALID_GPIO);
 
 	if (!of_property_read_u32_array(node,
