@@ -203,6 +203,13 @@ enum v4l2_colorfx {
  */
 #define V4L2_CID_USER_ASPEED_BASE		(V4L2_CID_USER_BASE + 0x11a0)
 
+/*
+ * The base for RGA driver controls.
+ * We reserve 32 controls for this driver.
+ * hex(int("0x11a0", 16) + 16)
+ */
+#define V4L2_CID_USER_RGA_BASE		(V4L2_CID_USER_BASE + 0x11b0)
+
 /* MPEG-class control IDs */
 /* The MPEG controls are applicable to all codec controls
  * and the 'MPEG' part of the define is historical */
