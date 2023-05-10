@@ -181,6 +181,14 @@ static int rga_s_ctrl(struct v4l2_ctrl *ctrl)
 		printk(KERN_INFO "RGA_V4L2_CID_Y4_ENABLE: %u\n", ctrl->val);
 		ctx->y4_enable = ctrl->val;
 		break;
+	case RGA_V4L2_CID_Y4MAP_LUT0:
+		printk(KERN_INFO "RGA_V4L2_CID_Y4MAP_LUT0: %u\n", ctrl->val);
+		ctx->y4map_lut0 = ctrl->val;
+		break;
+	case RGA_V4L2_CID_Y4MAP_LUT1:
+		printk(KERN_INFO "RGA_V4L2_CID_Y4MAP_LUT1: %u\n", ctrl->val);
+		ctx->y4map_lut1 = ctrl->val;
+		break;
 	}
 	spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
 	return 0;
@@ -235,11 +243,33 @@ static const struct v4l2_ctrl_config ctrl_y4_enable = {
 	.def = 0,
 };
 
+static const struct v4l2_ctrl_config ctrl_y4_map_lut0 = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y4MAP_LUT0,
+	.name = "Set Y4MAP LUT0",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 0xffffffff,
+	.step = 1,
+	.def = 0x76543210,
+};
+
+static const struct v4l2_ctrl_config ctrl_y4_map_lut1 = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y4MAP_LUT1,
+	.name = "Set Y4MAP LUT1",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 0xffffffff,
+	.step = 1,
+	.def = 0xfedcba98,
+};
+
 static int rga_setup_ctrls(struct rga_ctx *ctx)
 {
 	struct rockchip_rga *rga = ctx->rga;
 
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 8);
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 10);
 
 	v4l2_ctrl_new_std(&ctx->ctrl_handler, &rga_ctrl_ops,
 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
@@ -257,6 +287,8 @@ static int rga_setup_ctrls(struct rga_ctx *ctx)
 	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_dithering_down_enable, NULL);
 	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_dithering_down_mode, NULL);
 	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_enable, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_map_lut0, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_map_lut1, NULL);
 
 	if (ctx->ctrl_handler.error) {
 		int err = ctx->ctrl_handler.error;
@@ -618,6 +650,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	/* Adjust all values accordingly to the hardware capabilities
 	 * and chosen format.
 	 */
+
 	ret = vidioc_try_fmt(file, prv, f);
 	if (ret)
 		return ret;
