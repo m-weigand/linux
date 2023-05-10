@@ -229,6 +229,11 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 		}
 	}
 
+	dst_info.data.sw_dst_fmt_yuv400_en = ctx->yuv400_enable;
+	dst_info.data.sw_dst_fmt_y4_en = ctx->y4_enable;
+	dst_info.data.dither_down_en = ctx->dither_down_enable;
+	dst_info.data.dither_down_mode = ctx->dither_down_mode;
+
 	if (ctx->vflip)
 		src_info.data.mir_mode |= RGA_SRC_MIRR_MODE_X;
 
@@ -249,6 +254,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 		src_info.data.rot_mode = RGA_SRC_ROT_MODE_0_DEGREE;
 		break;
 	}
+
 
 	/*
 	 * Calculate the up/down scaling mode/factor.
@@ -309,6 +315,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	src_act_info.data.act_width = src_w - 1;
 
 	dst_vir_info.data.vir_stride = ctx->out.stride >> 2;
+
 	dst_act_info.data.act_height = dst_h - 1;
 	dst_act_info.data.act_width = dst_w - 1;
 
@@ -373,6 +380,10 @@ static void rga_cmd_set_mode(struct rga_ctx *ctx)
 	dest[(RGA_ALPHA_CTRL1 - RGA_MODE_BASE_REG) >> 2] = alpha_ctrl1.val;
 
 	dest[(RGA_MODE_CTRL - RGA_MODE_BASE_REG) >> 2] = mode.val;
+
+	// LUTS Y4
+	dest[(RGA_RST_Y4MAP_LUT0 - RGA_MODE_BASE_REG) >> 2] = ctx->y4map_lut0;
+	dest[(RGA_RST_Y4MAP_LUT1 - RGA_MODE_BASE_REG) >> 2] = ctx->y4map_lut1;
 }
 
 static void rga_cmd_set(struct rga_ctx *ctx)
