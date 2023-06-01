@@ -219,6 +219,20 @@ static int limit_fb_blits = -1;
 module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
 
+/* delay parameters used to delay the return of plane_atomic_atomic */
+/* see plane_atomic_update function for specific usage of these parameters */
+static int delay_a = 2000;
+module_param(delay_a, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(delay_a, "delay_a");
+
+static int delay_b = 15000;
+module_param(delay_b, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(delay_b, "delay_b");
+
+static int delay_c = 2000;
+module_param(delay_c, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(delay_c, "delay_c");
+
 // mode = 0: 16-level gray scale
 // mode = 1: 2-level black&white with dithering enabled
 // mode = 2: 2-level black&white, uses bw_threshold
@@ -1823,6 +1837,8 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	int translate_x, translate_y;
 	struct drm_rect src;
 	const void *vaddr;
+	u64 blit_area = 0;
+	int delay;
 
 	plane_state = drm_atomic_get_new_plane_state(state, plane);
 	if (!plane_state->crtc)
@@ -1901,6 +1917,9 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 			}
 			// the counter should only reach 0 here, -1 can only be externally set
 			limit_fb_blits -= (limit_fb_blits > 0) ? 1 : 0;
+
+			blit_area += (u64) (src_clip.x2 - src_clip.x1) *
+				(src_clip.y2 - src_clip.y1);
 		} else {
 			// we do not want to blit anything
 			/* printk(KERN_INFO "[rockchip-ebc] atomic update: not blitting: %i\n", limit_fb_blits); */
@@ -1929,11 +1948,26 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		}
 	}
 
+	/* uncomment to set the delay depending on the updated area, using a
+	 * polynomial of second degree */
+	/* delay = (int) (blit_area * blit_area * delay_a / 10000000000 + blit_area * delay_b / 10000 + delay_c); */
+	/* a simple threshold function: below a certain updated area, delay by
+	 * delay_s [mu s], otherwise delay by delay_b [mu s] */
+	delay = delay_a;
+	if (blit_area > 100000)
+		delay = delay_b;
+	/* printk(KERN_INFO "area update, for area %llu we compute a delay of: %i (a,b: %i, %i)", */
+	/* 	blit_area, */
+	/* 	delay, */
+	/* 	delay_a, */
+	/* 	delay_b */
+	/* ); */
+
 	if (list_empty(&ebc_plane_state->areas)){
 		spin_unlock(&ctx->queue_lock);
 		// the idea here: give the refresh thread time to acquire the lock
 		// before new clips arrive
-		usleep_range(5000, 5500);
+		usleep_range(delay, delay + 500);
 		return;
 	}
 
@@ -1942,7 +1976,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	spin_unlock(&ctx->queue_lock);
 	// the idea here: give the refresh thread time to acquire the lock
 	// before new clips arrive
-	usleep_range(5000, 5100);
+	usleep_range(delay, delay + 100);
 
 	wake_up_process(ebc->refresh_thread);
 }
