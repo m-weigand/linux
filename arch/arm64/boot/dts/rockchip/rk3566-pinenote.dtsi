@@ -118,7 +118,6 @@
 			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "rk817-battery-charging";
 			retain-state-suspended;
-<<<<<<< HEAD
 		};
 	};
 
@@ -129,8 +128,6 @@
 			panel_in_ebc: endpoint {
 				remote-endpoint = <&ebc_out_panel>;
 			};
-=======
->>>>>>> branch_rebase_6.3_rk_suspend_driver
 		};
 	};
 
@@ -406,10 +403,7 @@
 		vcc8-supply = <&vcc_sys>;
 		vcc9-supply = <&dcdc_boost>;
 
-<<<<<<< HEAD
 		// used for  kernel 5.17
-=======
->>>>>>> branch_rebase_6.3_rk_suspend_driver
 		battery {
 			monitored-battery = <&battery_cell>;
 			rockchip,resistor-sense-micro-ohms = <10000>;
@@ -417,7 +411,6 @@
 			rockchip,sleep-filter-current-microamp = <100000>;
 		};
 
-<<<<<<< HEAD
 		// newer kernels (at least >= 6.2)
 		rk817_charger: charger {
 		    monitored-battery = <&battery_cell>;
@@ -426,8 +419,6 @@
 		    rockchip,sleep-filter-current-microamp = <100000>;
 		};
 
-=======
->>>>>>> branch_rebase_6.3_rk_suspend_driver
 		regulators {
 			vdd_logic: DCDC_REG1 {
 				regulator-name = "vdd_logic";
@@ -749,11 +740,7 @@
 		hid-descr-addr = <0x1>;
 		reg = <0x24>;
 		interrupt-parent = <&gpio0>;
-<<<<<<< HEAD
 		interrupts = <RK_PA6 IRQ_TYPE_EDGE_FALLING>;
-=======
-		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
->>>>>>> branch_rebase_6.3_rk_suspend_driver
 		pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
 		pinctrl-names = "default";
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
