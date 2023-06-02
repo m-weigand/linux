@@ -3,7 +3,7 @@
 cd /root/kernel_v6.3
 
 if [ ! -d linux ]; then
-	git clone --depth 1 --branch branch_pinenote_6-3_v1 https://github.com/m-weigand/linux
+	git clone --depth 1 --branch branch_pinenote_6-3_v2 https://github.com/m-weigand/linux
 fi
 
 cd linux
@@ -16,7 +16,7 @@ mkdir pack
 make clean
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- pinenote_defconfig
 # build deb package with uncompressed Image
-make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- all
+# make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- all
 make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" KBUILD_IMAGE=arch/arm64/boot/Image bindeb-pkg
 cd ..
 ls
