@@ -1,3 +1,8 @@
+name: Build a kernel for the PineNote
+
+permissions:
+  contents: write
+
 on:
   # push:
     # branches:
@@ -5,22 +10,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  hello_world_job:
+  compile_kernel:
     runs-on: ubuntu-latest
     name: Compile the pinenote kernel
     steps:
       - name: Docker-based compilation
         id: compile-kernel-in-docker
         uses: m-weigand/linux@description
-      - uses: actions/upload-artifact@v3
-        with:
-          name: pinenote_kernel_modules_dtb
-          path: /home/runner/work/_temp/_github_home/pack/
-      - uses: actions/upload-artifact@v3
-        with:
-          name: pinenote_kernel_module_dtb_v6.2
-          path: /home/runner/work/_temp/_github_home/pack_v6.2/
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     name: pinenote_kernel_modules_dtb
+      #     path: /home/runner/work/_temp/_github_home/pack/
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     name: pinenote_kernel_module_dtb_v6.2
+      #     path: /home/runner/work/_temp/_github_home/pack_v6.2/
       - uses: actions/upload-artifact@v3
         with:
           name: pinenote_kernel_module_dtb_v6.3
           path: /home/runner/work/_temp/_github_home/pack_v6.3/
+
+  do_release:
+    runs-on: ubuntu-latest
+    needs:
+      - compile_kernel
+    steps:
+      - name: Clone workflow repository
+        uses: actions/checkout@v3
+      - name: Download image artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts/
+      - name: Make release
+        uses: softprops/action-gh-release@v0.1.15
+        with:
+          draft: true
+          files: |
+            artifacts/pinenote_kernel_module_dtb_v6.3/*.deb
