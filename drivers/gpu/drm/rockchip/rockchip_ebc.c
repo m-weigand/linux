@@ -221,15 +221,15 @@ MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limi
 
 /* delay parameters used to delay the return of plane_atomic_atomic */
 /* see plane_atomic_update function for specific usage of these parameters */
-static int delay_a = 2000;
+static int delay_a = 1000;
 module_param(delay_a, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(delay_a, "delay_a");
 
-static int delay_b = 15000;
+static int delay_b = 1000;
 module_param(delay_b, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(delay_b, "delay_b");
 
-static int delay_c = 2000;
+static int delay_c = 1000;
 module_param(delay_c, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(delay_c, "delay_c");
 
