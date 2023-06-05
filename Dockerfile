@@ -11,16 +11,9 @@ RUN mkdir /root/kernel
 
 COPY compile.sh /root/kernel/
 
-RUN mkdir /root/kernel_v6.2
-COPY compile_v6-2.sh /root/kernel_v6.2/
-
 RUN mkdir /root/kernel_v6.3
 COPY compile_v6-3.sh /root/kernel_v6.3/
 
 COPY compile_all.sh /root/
 
 ENTRYPOINT /root/compile_all.sh
-
-# WORKDIR /root/mesa
-# CMD /root/mesa/compile.sh
-
