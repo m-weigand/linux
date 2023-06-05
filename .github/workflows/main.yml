@@ -47,3 +47,4 @@ jobs:
           draft: true
           files: |
             artifacts/pinenote_kernel_module_dtb_v6.3/*.deb
+            artifacts/pinenote_kernel_module_dtb_v6.3/linux-upstream*
