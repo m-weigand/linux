@@ -7,8 +7,6 @@ if [ ! -d linux ]; then
 fi
 
 cd linux
-# for now we do not want to include any git information in the version string
-touch .scmversion
 
 test -d pack && rm -r pack
 mkdir pack
@@ -25,7 +23,7 @@ rm *dbg*.deb
 rename 's/.deb/_no_compression.deb/' linux-image*
 
 mv *.deb linux/pack/
-mv linux-update* linux/pack/
+mv linux-upstream* linux/pack/
 
 cd linux
 # make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" bindeb-pkg
