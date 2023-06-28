@@ -35,6 +35,7 @@ enum lm3630a_ledb_ctrl {
 #define LM3630A_MAX_BRIGHTNESS 255
 #define LM3630A_BOOST_USE_1MHZ BIT(0)
 #define LM3630A_BOOST_SHIFT BIT(1)
+#define LM3630A_BOOST_OCP BIT(3) & Bit(4)
 /*
  *@leda_label    : optional led a label.
  *@leda_init_brt : led a init brightness. 4~255

@@ -98,6 +98,11 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 		value |= LM3630A_BOOST_USE_1MHZ;
 	if (pdata->boost_shift_freq)
 		value |= LM3630A_BOOST_SHIFT;
+
+	// clear OCP (overcurrent bits)
+	value &= ~(1 << 3);
+	value &= ~(1 << 4);
+
 	rval |= lm3630a_write(pchip, REG_BOOST, value);
 
 	/* set current A */
