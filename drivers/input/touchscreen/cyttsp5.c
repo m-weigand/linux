@@ -43,6 +43,7 @@
 #define HID_DESC_REG				0x1
 #define HID_INPUT_REG				0x3
 #define HID_OUTPUT_REG				0x4
+#define HID_COMMAND_REG             0x5
 
 #define REPORT_ID_TOUCH				0x1
 #define REPORT_ID_BTN				0x3
@@ -68,6 +69,7 @@
 #define HID_APP_OUTPUT_REPORT_ID		0x2F
 #define HID_BL_RESPONSE_REPORT_ID		0x30
 #define HID_BL_OUTPUT_REPORT_ID			0x40
+#define HID_RESPONSE_REPORT_ID      0xF0
 
 #define HID_OUTPUT_RESPONSE_REPORT_OFFSET	2
 #define HID_OUTPUT_RESPONSE_CMD_OFFSET		4
@@ -78,9 +80,15 @@
 #define HID_SYSINFO_BTN_MASK			GENMASK(7, 0)
 #define HID_SYSINFO_MAX_BTN			8
 
+#define HID_CMD_SET_POWER           0x8
+
+#define HID_POWER_ON                0x0
+#define HID_POWER_SLEEP             0x1
+
 #define CY_HID_OUTPUT_TIMEOUT_MS		200
 #define CY_HID_OUTPUT_GET_SYSINFO_TIMEOUT_MS	3000
 #define CY_HID_GET_HID_DESCRIPTOR_TIMEOUT_MS	4000
+#define CY_HID_SET_POWER_TIMEOUT		500
 
 /* maximum number of concurrent tracks */
 #define TOUCH_REPORT_SIZE			10
@@ -99,6 +107,14 @@
 #define TOUCH_REPORT_USAGE_PG_MAJ		0xFF010062
 #define TOUCH_REPORT_USAGE_PG_MIN		0xFF010063
 #define TOUCH_COL_USAGE_PG			0x000D0022
+
+#define SET_CMD_LOW(byte, bits) \
+	((byte) = (((byte) & 0xF0) | ((bits) & 0x0F)))
+#define SET_CMD_HIGH(byte, bits)\
+	((byte) = (((byte) & 0x0F) | ((bits) & 0xF0)))
+#define SET_CMD_OPCODE(byte, opcode) SET_CMD_LOW(byte, opcode)
+#define SET_CMD_REPORT_TYPE(byte, type) SET_CMD_HIGH(byte, ((type) << 4))
+#define SET_CMD_REPORT_ID(byte, id) SET_CMD_LOW(byte, id)
 
 /* System Information interface definitions */
 struct cyttsp5_sensing_conf_data_dev {
@@ -509,15 +525,66 @@ static int cyttsp5_get_sysinfo_regs(struct cyttsp5 *ts)
 	struct cyttsp5_sensing_conf_data_dev *scd_dev =
 		(struct cyttsp5_sensing_conf_data_dev *)
 		&ts->response_buf[HID_SYSINFO_SENSING_OFFSET];
+	u32 tmp;
 
 	cyttsp5_si_get_btn_data(ts);
 
 	scd->max_tch = scd_dev->max_num_of_tch_per_refresh_cycle;
-	scd->res_x = get_unaligned_le16(&scd_dev->res_x);
-	scd->res_y = get_unaligned_le16(&scd_dev->res_y);
-	scd->max_z = get_unaligned_le16(&scd_dev->max_z);
-	scd->len_x = get_unaligned_le16(&scd_dev->len_x);
-	scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+
+	if (scd->max_tch == 0) {
+		dev_dbg(ts->dev, "Max touch points cannot be zero\n");
+		scd->max_tch = 2;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-x", &tmp))
+		scd->res_x = get_unaligned_le16(&scd_dev->res_x);
+	else
+		scd->res_x = tmp;
+
+	if (scd->res_x == 0) {
+		dev_err(ts->dev, "ABS_X cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-size-y", &tmp))
+		scd->res_y = get_unaligned_le16(&scd_dev->res_y);
+	else
+		scd->res_y = tmp;
+
+	if (scd->res_y == 0) {
+		dev_err(ts->dev, "ABS_Y cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-max-pressure", &tmp))
+		scd->max_z = get_unaligned_le16(&scd_dev->max_z);
+	else
+		scd->max_z = tmp;
+
+	if (scd->max_z == 0) {
+		dev_err(ts->dev, "ABS_PRESSURE cannot be zero\n");
+		return -ENODATA;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-x-mm", &tmp))
+		scd->len_x = get_unaligned_le16(&scd_dev->len_x);
+	else
+		scd->len_x = tmp;
+
+	if (scd->len_x == 0) {
+		dev_dbg(ts->dev, "Touchscreen size x cannot be zero\n");
+		scd->len_x = scd->res_x + 1;
+	}
+
+	if(device_property_read_u32(ts->dev, "touchscreen-y-mm", &tmp))
+		scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+	else
+		scd->len_y = tmp;
+
+	if (scd->len_y == 0) {
+		dev_dbg(ts->dev, "Touchscreen size y cannot be zero\n");
+		scd->len_y = scd->res_y + 1;
+	}
 
 	return 0;
 }
@@ -555,6 +622,82 @@ static int cyttsp5_hid_output_get_sysinfo(struct cyttsp5 *ts)
 	}
 
 	return cyttsp5_get_sysinfo_regs(ts);
+}
+
+static int cyttsp5_enter_sleep(struct cyttsp5 *ts)
+{
+	int rc;
+	u8 cmd[2];
+
+	memset(cmd, 0, sizeof(cmd));
+
+	SET_CMD_REPORT_TYPE(cmd[0], 0);
+	SET_CMD_REPORT_ID(cmd[0], HID_POWER_SLEEP);
+	SET_CMD_OPCODE(cmd[1], HID_CMD_SET_POWER);
+
+	rc = cyttsp5_write(ts, HID_COMMAND_REG, cmd, 2);
+	if (rc) {
+		dev_err(ts->dev, "Failed to write command %d", rc);
+		return rc;
+	}
+
+	rc = wait_for_completion_interruptible_timeout(&ts->cmd_done,
+				msecs_to_jiffies(CY_HID_SET_POWER_TIMEOUT));
+	if (rc <= 0) {
+		dev_err(ts->dev, "HID output cmd execution timed out\n");
+		rc = -ETIMEDOUT;
+		return rc;
+	}
+
+	/* validate */
+	if ((ts->response_buf[2] != HID_RESPONSE_REPORT_ID)
+			|| ((ts->response_buf[3] & 0x3) != HID_POWER_SLEEP)
+			|| ((ts->response_buf[4] & 0xF) != HID_CMD_SET_POWER)) {
+		rc = -EINVAL;
+		dev_err(ts->dev, "Validation of the sleep response failed\n");
+		return rc;
+	}
+
+	return 0;
+
+}
+
+static int cyttsp5_wakeup(struct cyttsp5 *ts)
+{
+	int rc;
+	u8 cmd[2];
+
+	memset(cmd, 0, sizeof(cmd));
+
+	SET_CMD_REPORT_TYPE(cmd[0], 0);
+	SET_CMD_REPORT_ID(cmd[0], HID_POWER_ON);
+	SET_CMD_OPCODE(cmd[1], HID_CMD_SET_POWER);
+
+	rc = cyttsp5_write(ts, HID_COMMAND_REG, cmd, 2);
+	if (rc) {
+		dev_err(ts->dev, "Failed to write command %d", rc);
+		return rc;
+	}
+
+	rc = wait_for_completion_interruptible_timeout(&ts->cmd_done,
+				msecs_to_jiffies(CY_HID_SET_POWER_TIMEOUT));
+	if (rc <= 0) {
+		dev_err(ts->dev, "HID output cmd execution timed out\n");
+		rc = -ETIMEDOUT;
+		return rc;
+	}
+
+	/* validate */
+	if ((ts->response_buf[2] != HID_RESPONSE_REPORT_ID)
+			|| ((ts->response_buf[3] & 0x3) != HID_POWER_ON)
+			|| ((ts->response_buf[4] & 0xF) != HID_CMD_SET_POWER)) {
+		rc = -EINVAL;
+		dev_err(ts->dev, "Validation of the wakeup response failed\n");
+		return rc;
+	}
+
+	return 0;
+
 }
 
 static int cyttsp5_hid_output_bl_launch_app(struct cyttsp5 *ts)
@@ -601,12 +744,7 @@ static int cyttsp5_get_hid_descriptor(struct cyttsp5 *ts,
 				      struct cyttsp5_hid_desc *desc)
 {
 	struct device *dev = ts->dev;
-	__le16 hid_desc_register = cpu_to_le16(HID_DESC_REG);
 	int rc;
-	u8 cmd[2];
-
-	/* Set HID descriptor register */
-	memcpy(cmd, &hid_desc_register, sizeof(hid_desc_register));
 
 	rc = cyttsp5_write(ts, HID_DESC_REG, NULL, 0);
 	if (rc) {
@@ -674,6 +812,10 @@ static irqreturn_t cyttsp5_handle_irq(int irq, void *handle)
 		break;
 	case HID_BTN_REPORT_ID:
 		cyttsp5_btn_attention(ts->dev);
+		break;
+	case HID_RESPONSE_REPORT_ID:
+		memcpy(ts->response_buf, ts->input_buf, size);
+		complete(&ts->cmd_done);
 		break;
 	default:
 		/* It is not an input but a command response */
@@ -876,6 +1018,7 @@ static int cyttsp5_i2c_probe(struct i2c_client *client)
 
 static const struct of_device_id cyttsp5_of_match[] = {
 	{ .compatible = "cypress,tt21000", },
+	{ .compatible = "cypress,tma448", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cyttsp5_of_match);
@@ -886,10 +1029,32 @@ static const struct i2c_device_id cyttsp5_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cyttsp5_i2c_id);
 
+static int __maybe_unused cyttsp5_suspend(struct device *dev)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+
+	if (!device_may_wakeup(dev))
+		cyttsp5_enter_sleep(ts);
+	return 0;
+}
+
+static int __maybe_unused cyttsp5_resume(struct device *dev)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+
+	if (!device_may_wakeup(dev))
+		cyttsp5_wakeup(ts);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cyttsp5_pm, cyttsp5_suspend, cyttsp5_resume);
+
 static struct i2c_driver cyttsp5_i2c_driver = {
 	.driver = {
 		.name = CYTTSP5_NAME,
 		.of_match_table = cyttsp5_of_match,
+		.pm     = &cyttsp5_pm,
 	},
 	.probe_new = cyttsp5_i2c_probe,
 	.id_table = cyttsp5_i2c_id,
