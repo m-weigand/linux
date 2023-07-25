@@ -221,11 +221,11 @@ MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limi
 
 /* delay parameters used to delay the return of plane_atomic_atomic */
 /* see plane_atomic_update function for specific usage of these parameters */
-static int delay_a = 1000;
+static int delay_a = 2000;
 module_param(delay_a, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(delay_a, "delay_a");
 
-static int delay_b = 1000;
+static int delay_b = 100000;
 module_param(delay_b, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(delay_b, "delay_b");
 
@@ -251,6 +251,15 @@ MODULE_PARM_DESC(bw_dither_invert, "invert dither colors in bw mode");
 static bool prepare_prev_before_a2 = false;
 module_param(prepare_prev_before_a2, bool, 0644);
 MODULE_PARM_DESC(prepare_prev_before_a2, "Convert prev buffer to bw when switchting to the A2 waveform");
+
+static int dclk_select = 0;
+module_param(dclk_select, int, 0644);
+MODULE_PARM_DESC(dclk_select, "-1: use dclk from mode, 0: 200 MHz (default), 1: 250");
+
+static int temp_override = 0;
+module_param(temp_override, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(temp_override, "Values > 0 override the temperature");
+
 
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
@@ -910,7 +919,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		/* Move the queued damage areas to the local list. */
 		/* spin_lock(&ctx->queue_lock); */
 		/* list_splice_tail_init(&ctx->queue, &areas); */
-		gotlock = spin_trylock(&ctx->queue_lock);
+		/* gotlock = spin_trylock(&ctx->queue_lock); */
+		gotlock = true;
+		spin_lock(&ctx->queue_lock);
         if (gotlock)
 			list_splice_tail_init(&ctx->queue, &areas);
 		/* spin_unlock(&ctx->queue_lock); */
@@ -1071,6 +1082,11 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	} else {
 		/* Convert from millicelsius to celsius. */
 		temperature /= 1000;
+
+		if (temp_override > 0){
+			printk(KERN_INFO "rockchip-ebc: override temperature from %i to %i\n", temp_override, temperature);
+            temperature = temp_override;
+        }
 
 		ret = drm_epd_lut_set_temperature(&ebc->lut, temperature);
 		if (ret < 0)
@@ -1366,7 +1382,12 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	hsync_width = sdck.hsync_end - sdck.hsync_start;
 	vsync_width = mode.vsync_end - mode.vsync_start;
 
-	clk_set_rate(ebc->dclk, mode.clock * 1000);
+	if (dclk_select == -1)
+		clk_set_rate(ebc->dclk, mode.clock * 1000);
+	else if (dclk_select == 0)
+		clk_set_rate(ebc->dclk, 200000000);
+	else if (dclk_select == 1)
+		clk_set_rate(ebc->dclk, 250000000);
 
 	ebc->dsp_start = EBC_DSP_START_DSP_SDCE_WIDTH(sdck.hdisplay) |
 			 EBC_DSP_START_SW_BURST_CTRL;
@@ -1436,7 +1457,13 @@ static int rockchip_ebc_crtc_atomic_check(struct drm_crtc *crtc,
 	if (crtc_state->enable) {
 		struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 
-		long rate = mode->clock * 1000;
+		long rate = 200000000;
+		if (dclk_select == -1)
+			rate = mode->clock * 1000;
+		else if (dclk_select == 0)
+			rate = 200000000;
+		else if (dclk_select == 1)
+			rate = 250000000;
 
 		rate = clk_round_rate(ebc->dclk, rate);
 		if (rate < 0)
@@ -1967,7 +1994,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		spin_unlock(&ctx->queue_lock);
 		// the idea here: give the refresh thread time to acquire the lock
 		// before new clips arrive
-		usleep_range(delay, delay + 500);
+		/* usleep_range(delay, delay + 500); */
 		return;
 	}
 
@@ -1976,7 +2003,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	spin_unlock(&ctx->queue_lock);
 	// the idea here: give the refresh thread time to acquire the lock
 	// before new clips arrive
-	usleep_range(delay, delay + 100);
+	/* usleep_range(delay, delay + 100); */
 
 	wake_up_process(ebc->refresh_thread);
 }
