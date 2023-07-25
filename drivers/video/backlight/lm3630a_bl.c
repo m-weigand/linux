@@ -92,18 +92,27 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 	rval = lm3630a_write(pchip, REG_FILTER_STRENGTH, 0x03);
 	/* set Cofig. register */
 	rval |= lm3630a_update(pchip, REG_CONFIG, 0x07, pdata->pwm_ctrl);
+	/* enable feedback on both strings */
+	/* rval |= lm3630a_update(pchip, REG_CONFIG, 0x18, 0x18); */
+
 	/* set boost control */
-	value = 0x38;  // default
-	if (pdata->boost_use_1mhz)
-		value |= LM3630A_BOOST_USE_1MHZ;
-	if (pdata->boost_shift_freq)
-		value |= LM3630A_BOOST_SHIFT;
+	value = pdata->boost_fmode +
+		(pdata->boost_shift << 1) +
+		(pdata->boost_slow_start << 2) +
+		(pdata->boost_ocp << 3) +
+		(pdata->boost_ovp << 5);
+	/* value = 0x38;  // default */
+	printk(KERN_INFO "lm3630a: REG_BOOST, writing value: %i", value);
 	rval |= lm3630a_write(pchip, REG_BOOST, value);
 
+	pr_info("lm3630a: current_index_leda: %i", pdata->leda_current_index);
+	pr_info("lm3630a: current_index_ledb: %i", pdata->ledb_current_index);
 	/* set current A */
-	rval |= lm3630a_update(pchip, REG_I_A, 0x1F, 0x1F);
+	rval |= lm3630a_update(pchip, REG_I_A, 0x1F, pdata->leda_current_index);
+	/* rval |= lm3630a_update(pchip, REG_I_A, 0x1F, 0x1F); */
 	/* set current B */
-	rval |= lm3630a_write(pchip, REG_I_B, 0x1F);
+	/* rval |= lm3630a_write(pchip, REG_I_B, 0x1F); */
+	rval |= lm3630a_write(pchip, REG_I_B, pdata->ledb_current_index);
 	/* set control */
 	rval |= lm3630a_update(pchip, REG_CTRL, 0x14, pdata->leda_ctrl);
 	rval |= lm3630a_update(pchip, REG_CTRL, 0x0B, pdata->ledb_ctrl);
@@ -418,6 +427,8 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 	const char *label;
 	u32 bank, val;
 	bool linear;
+	u32 current_ma;
+	u8 current_index;
 
 	ret = fwnode_property_read_u32(node, "reg", &bank);
 	if (ret)
@@ -482,6 +493,27 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->leda_max_brt = val;
 	}
 
+	ret = fwnode_property_read_u32(node, "ti,current-microamp", &current_ma);
+	pr_info("current-microamp %i", current_ma);
+	// convert to 5-bit value
+	current_index = -1;
+	for (int i=0; i < 31; i++){
+		pr_info("    checking %i = %i", i,  5000 + i * 750);
+		if (5000 + i * 750 == current_ma){
+			current_index = i;
+			break;
+		}
+	}
+	if (!current_index){
+		return -EINVAL;
+	}
+	if (!ret) {
+		if (bank)
+			pdata->leda_current_index = current_index;
+		else
+			pdata->ledb_current_index = current_index;
+	}
+
 	return 0;
 }
 
@@ -490,7 +522,77 @@ static int lm3630a_parse_node(struct lm3630a_chip *pchip,
 {
 	int ret = -ENODEV, seen_led_sources = 0;
 	struct fwnode_handle *node;
+	/* default reset values of the device */
+	u32 boost_frequency = 500000;
+	u32 boost_ovp = 24000000;
+	u32 boost_ocp = 1200000;
 
+	/* boost control */
+	ret = fwnode_property_read_u32(dev_fwnode(pchip->dev), "ti,boost-frequency-hz",
+				       &boost_frequency);
+	switch (boost_frequency) {
+		case 500000:
+			break;
+		case 560000:
+			pdata->boost_shift = true;
+			break;
+		case 1000000:
+			pdata->boost_fmode = true;
+			break;
+		case 1120000:
+			pdata->boost_fmode = true;
+			pdata->boost_shift = true;
+			break;
+		default:
+			dev_err(pchip->dev, "invalid boost frequency\n");
+			return -EINVAL;
+			break;
+	}
+	ret = fwnode_property_read_u32(dev_fwnode(pchip->dev), "ti,boost-ocp-microamp",
+				       &boost_ocp);
+	// todo: move values to header constants
+	switch(boost_ocp) {
+		case 600000:
+			pdata->boost_ocp = 0;
+			break;
+		case 800000:
+			pdata->boost_ocp = 1;
+			break;
+		case 1000000:
+			pdata->boost_ocp = 2;
+			break;
+		case 1200000:
+			pdata->boost_ocp = 3;
+			break;
+		default:
+			dev_err(pchip->dev, "invalid ocp value\n");
+			return -EINVAL;
+			break;
+	}
+
+	ret = fwnode_property_read_u32(dev_fwnode(pchip->dev), "ti,boost-ovp-microvolts",
+				       &boost_ovp);
+	// todo: move values to header constants
+	switch(boost_ovp) {
+		case 16000000:
+			pdata->boost_ovp = 0;
+			break;
+		case 24000000:
+			pdata->boost_ovp = 1;
+			break;
+		case 32000000:
+			pdata->boost_ovp = 2;
+			break;
+		case 40000000:
+			pdata->boost_ovp = 3;
+			break;
+		default:
+			dev_err(pchip->dev, "invalid ovp value\n");
+			return -EINVAL;
+			break;
+	}
+
+	/* led strings */
 	device_for_each_child_node(pchip->dev, node) {
 		ret = lm3630a_parse_bank(pdata, node, &seen_led_sources);
 		if (ret) {
@@ -540,10 +642,12 @@ static int lm3630a_probe(struct i2c_client *client)
 		pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
 		pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
 
-		pdata->boost_shift_freq = device_property_read_bool(
-			pchip->dev, "boost_frequency_shift");
-		pdata->boost_use_1mhz = device_property_read_bool(
-			pchip->dev, "boost_use_1mhz");
+		// todo: use header constants
+		pdata->boost_ovp = 1;
+		pdata->boost_ocp = 3;
+		pdata->boost_slow_start = 0;
+		pdata->boost_shift = 0;
+		pdata->boost_fmode = 0;
 
 		rval = lm3630a_parse_node(pchip, pdata);
 		if (rval) {

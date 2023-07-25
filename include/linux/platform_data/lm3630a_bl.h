@@ -56,16 +56,22 @@ struct lm3630a_platform_data {
 	int leda_init_brt;
 	int leda_max_brt;
 	enum lm3630a_leda_ctrl leda_ctrl;
+	int leda_current_index;
 	/* led b config. */
 	const char *ledb_label;
 	int ledb_init_brt;
 	int ledb_max_brt;
 	enum lm3630a_ledb_ctrl ledb_ctrl;
+	int ledb_current_index;
 	/* pwm config. */
 	unsigned int pwm_period;
 	enum lm3630a_pwm_ctrl pwm_ctrl;
-	bool boost_shift_freq;
-	bool boost_use_1mhz;
+	/* boost config */
+	int boost_ovp;
+	int boost_ocp;
+	bool boost_slow_start;
+	bool boost_shift;
+	bool boost_fmode;
 };
 
 #endif /* __LINUX_LM3630A_H */
