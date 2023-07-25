@@ -919,7 +919,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		/* Move the queued damage areas to the local list. */
 		/* spin_lock(&ctx->queue_lock); */
 		/* list_splice_tail_init(&ctx->queue, &areas); */
-		gotlock = spin_trylock(&ctx->queue_lock);
+		/* gotlock = spin_trylock(&ctx->queue_lock); */
+		gotlock = true;
+		spin_lock(&ctx->queue_lock);
         if (gotlock)
 			list_splice_tail_init(&ctx->queue, &areas);
 		/* spin_unlock(&ctx->queue_lock); */
@@ -1992,7 +1994,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 		spin_unlock(&ctx->queue_lock);
 		// the idea here: give the refresh thread time to acquire the lock
 		// before new clips arrive
-		usleep_range(delay, delay + 500);
+		/* usleep_range(delay, delay + 500); */
 		return;
 	}
 
@@ -2001,7 +2003,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	spin_unlock(&ctx->queue_lock);
 	// the idea here: give the refresh thread time to acquire the lock
 	// before new clips arrive
-	usleep_range(delay, delay + 100);
+	/* usleep_range(delay, delay + 100); */
 
 	wake_up_process(ebc->refresh_thread);
 }
