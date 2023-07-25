@@ -579,19 +579,35 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		boost_frequency_shift;
-		/* boost_use_1mhz; */
+		/* ti,boost-frequency-hz = <500000>; */
+		/* ti,boost-frequency-hz = <560000>; */
+		/* ti,boost-frequency-hz = <1000000>; */
+		ti,boost-frequency-hz = <1120000>;
+
+		/* ti,boost-ovp-microvolt = <16000000>; */
+		ti,boost-ovp-microvolt = <24000000>;
+		/* ti,boost-ovp-microvolt = <32000000>; */
+		/* ti,boost-ovp-microvolt = <40000000>; */
+
+		ti,boost-ocp-microamp = <600000>;
+		/* ti,boost-ocp-microamp = <800000>; */
+		/* ti,boost-ocp-microamp = <1000000>; */
+		/* ti,boost-ocp-microamp = <1200000>; */
 
 		led@0 {
 			reg = <0>;
 			label = "backlight_cool";
 			default-brightness = <0>;
+			// anything between 5000 (5 mA) and 28250 in 750 muA steps
+			ti,current-microamp = <10250>;
 		};
 
 		led@1 {
 			reg = <1>;
 			label = "backlight_warm";
 			default-brightness = <0>;
+			// anything between 5000 (5 mA) and 28250 in 750 muA steps
+			ti,current-microamp = <10250>;
 		};
 	};
 
