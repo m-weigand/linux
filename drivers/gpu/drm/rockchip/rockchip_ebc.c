@@ -252,6 +252,11 @@ static bool prepare_prev_before_a2 = false;
 module_param(prepare_prev_before_a2, bool, 0644);
 MODULE_PARM_DESC(prepare_prev_before_a2, "Convert prev buffer to bw when switchting to the A2 waveform");
 
+static int temp_override = 0;
+module_param(temp_override, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(temp_override, "Values > 0 override the temperature");
+
+
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
 static int ioctl_trigger_global_refresh(struct drm_device *dev, void *data,
@@ -1071,6 +1076,11 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	} else {
 		/* Convert from millicelsius to celsius. */
 		temperature /= 1000;
+
+		if (temp_override > 0){
+			printk(KERN_INFO "rockchip-ebc: override temperature from %i to %i\n", temp_override, temperature);
+            temperature = temp_override;
+        }
 
 		ret = drm_epd_lut_set_temperature(&ebc->lut, temperature);
 		if (ret < 0)
