@@ -722,8 +722,6 @@ static int __maybe_unused tps65185_resume(struct device *dev)
 
 	struct tps65185 *tps;
 	int ret;
-	int irq;
-	int irq2;
 
 	tps = i2c_get_clientdata(client);
 
