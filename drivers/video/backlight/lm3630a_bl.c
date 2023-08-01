@@ -504,7 +504,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			break;
 		}
 	}
-	if (!current_index){
+	if (current_index == -1){
 		return -EINVAL;
 	}
 	if (!ret) {
