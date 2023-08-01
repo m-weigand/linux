@@ -1107,12 +1107,11 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	// todo: make optional
 	if (prepare_prev_before_a2){
 		if(ebc->lut_changed && waveform == 1){
-			printk(KERN_INFO "Change to A2 waveform detected, converting prev to bw");
 			u8 pixel1, pixel2;
-			void *src;
-			src = ctx->prev;
+			void *src = ctx->prev;
 			u8 *sbuf = src;
 			int index;
+			printk(KERN_INFO "Change to A2 waveform detected, converting prev to bw");
 
 			for (index=0; index < ctx->gray4_size; index++){
 				pixel1 = *sbuf & 0b00001111;
