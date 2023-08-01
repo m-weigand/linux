@@ -746,7 +746,7 @@ static int __maybe_unused tps65185_resume(struct device *dev)
 
 	// If I understand correctly regulator TPS65185_REGULATOR_VDRIVE is tied to
 	// the powerup pin - therefore when the ebc resumes the tps65185 is
-	// directly activated. I think its correct to do nothing here any wait.
+	// directly activated. I think its correct to do nothing here and wait.
 	// Similar to the probe function which also puts the pmic into standby
 	/* Power down all rails, but enable control by the powerup GPIO. */
 	ret = regmap_write(tps->regmap, TPS65185_REG_ENABLE,
