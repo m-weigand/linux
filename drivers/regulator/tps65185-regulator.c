@@ -722,8 +722,6 @@ static int __maybe_unused tps65185_resume(struct device *dev)
 
 	struct tps65185 *tps;
 	int ret;
-	int irq;
-	int irq2;
 
 	tps = i2c_get_clientdata(client);
 
@@ -735,20 +733,20 @@ static int __maybe_unused tps65185_resume(struct device *dev)
 		return dev_err_probe(dev, ret, "Failed to set config at resume\n");
 
 	// disable all INT_EN1 interrupts
-	tps->int_en1 = 0;
+	tps->int_en1 = 0xff;
 	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN1, tps->int_en1);
 	if (ret)
 		return ret;
 
 	// only enable temperature-is-ready irq
-	tps->int_en2 = TPS65185_INT2_EOC;
+	tps->int_en2 = 0xff;
 	ret = regmap_write(tps->regmap, TPS65185_REG_INT_EN2, tps->int_en2);
 	if (ret)
 		return ret;
 
 	// If I understand correctly regulator TPS65185_REGULATOR_VDRIVE is tied to
 	// the powerup pin - therefore when the ebc resumes the tps65185 is
-	// directly activated. I think its correct to do nothing here any wait.
+	// directly activated. I think its correct to do nothing here and wait.
 	// Similar to the probe function which also puts the pmic into standby
 	/* Power down all rails, but enable control by the powerup GPIO. */
 	ret = regmap_write(tps->regmap, TPS65185_REG_ENABLE,
