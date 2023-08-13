@@ -1092,12 +1092,12 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
             temperature = temp_override;
         }
         	} else if (temp_offset > 0){
-			int old_val = temperature;
+			//int old_val = temperature;
 			if (temperature > temp_offset)
 				temperature -= temp_offset;
 			else
 				temperature = 0;
-			printk(KERN_INFO "rockchip-ebc: temp offset from %i to %i\n", old_val, temperature);
+			//printk(KERN_INFO "rockchip-ebc: temp offset from %i to %i\n", old_val, temperature);
 		}
 
 		ret = drm_epd_lut_set_temperature(&ebc->lut, temperature);
