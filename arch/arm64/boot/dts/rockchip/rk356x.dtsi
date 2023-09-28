@@ -622,6 +622,7 @@
 		resets = <&cru SRST_RGA_CORE>, <&cru SRST_A_RGA>, <&cru SRST_H_RGA>;
 		reset-names = "core", "axi", "ahb";
 		power-domains = <&power RK3568_PD_RGA>;
+		status = "disabled";
 	};
 
 	vepu: video-codec@fdee0000 {
