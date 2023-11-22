@@ -585,8 +585,8 @@
 		ti,boost-frequency-hz = <1120000>;
 
 		/* ti,boost-ovp-microvolt = <16000000>; */
-		ti,boost-ovp-microvolt = <24000000>;
-		/* ti,boost-ovp-microvolt = <32000000>; */
+		/* ti,boost-ovp-microvolt = <24000000>; */
+		ti,boost-ovp-microvolt = <32000000>;
 		/* ti,boost-ovp-microvolt = <40000000>; */
 
 		ti,boost-ocp-microamp = <600000>;
