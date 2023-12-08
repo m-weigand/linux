@@ -598,7 +598,7 @@
 			reg = <0>;
 			label = "backlight_cool";
 			default-brightness = <0>;
-			max-brightness = <125>;
+			max-brightness = <255>;
 			// anything between 5000 (5 mA) and 28250 in 750 muA steps
 			/* ti,current-microamp = <5750>; */
 			ti,current-microamp = <12500>;
@@ -610,7 +610,7 @@
 			reg = <1>;
 			label = "backlight_warm";
 			default-brightness = <0>;
-			max-brightness = <125>;
+			max-brightness = <255>;
 			// anything between 5000 (5 mA) and 28250 in 750 muA steps
 			/* ti,current-microamp = <5750>; */
 			ti,current-microamp = <12500>;
