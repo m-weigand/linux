@@ -1174,9 +1174,9 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	next_handle = dma_map_single(dev, ctx->next, ctx->gray4_size, DMA_TO_DEVICE);
 	prev_handle = dma_map_single(dev, ctx->prev, ctx->gray4_size, DMA_TO_DEVICE);
 
-	regmap_write(ebc->regmap, EBC_WIN_MST0,
-		     next_handle);
 	regmap_write(ebc->regmap, EBC_WIN_MST1,
+		     next_handle);
+	regmap_write(ebc->regmap, EBC_WIN_MST0,
 		     prev_handle);
 
 	/* printk(KERN_INFO "[rockchip_ebc] ebc_refresh"); */
