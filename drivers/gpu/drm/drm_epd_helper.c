@@ -167,7 +167,7 @@ static const struct pvi_wbf_mode_info pvi_wbf_mode_info_table[] = {
 			0x19,
 			0x43,
 		},
-		.format = DRM_EPD_LUT_5BIT_PACKED,
+		.format = DRM_EPD_LUT_5BIT,
 		.modes = {
 			[DRM_EPD_WF_RESET]	= 0,
 			[DRM_EPD_WF_DU]		= 1,
@@ -339,8 +339,10 @@ int drmm_epd_lut_file_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	/* Only 5-bit waveform files are supported by drm_epd_lut_convert. */
-	if (file->mode_info->format != DRM_EPD_LUT_5BIT_PACKED)
+	/* Only 5-bit waveform files are supported by drm_epd_lut_convert.
+	 * Due to the structure of the input file, we need to fully decompose the
+	 * data and cannot retain the packed state*/
+	if (file->mode_info->format != DRM_EPD_LUT_5BIT)
 		return -ENOTSUPP;
 
 	return 0;
@@ -349,6 +351,12 @@ EXPORT_SYMBOL(drmm_epd_lut_file_init);
 
 /**
  * drm_epd_lut_size_shift - Get the size of a LUT phase in power-of-2 bytes
+ *
+ * Note: the bit size referred to the formats refers to the number of
+ * transitions of a pixel. For example, the 5 bit lut indicates that we have
+ * 2^5 possible transitions, which in this case means that there are 32
+ * different states.
+ * 4 bit corresponds to 16 grayscales
  *
  * @format: One of the LUT buffer formats
  *
@@ -374,14 +382,22 @@ static int drm_epd_lut_size_shift(enum drm_epd_lut_format format)
 	unreachable();
 }
 
+/* decode the lut into a DRM_EPD_LUT_5BIT structured buffer */
 static int pvi_wbf_decode_lut(struct drm_epd_lut *lut, const u8 *lut_data)
 {
-
 	unsigned int copies, max_bytes, size_shift, state, total_bytes;
 	struct drm_device *dev = lut->file->dev;
 	const u8 *in = lut_data;
 	u8 *out = lut->buf;
 	u8 token;
+
+	u32 x=0;
+	u32 y=0;
+	int frame=0;
+	// note: we hardcode 32 transitions (5-bit) here
+	int maxpic = 0x20;
+	/* Aug 15 11:26:37 pinenote kernel: ebc: size_shift: 10 max_bytes: 262144 */
+	/* Aug 15 11:26:37 pinenote kernel: ebc: total_bytes: 111616 */
 
 	size_shift = drm_epd_lut_size_shift(lut->file->mode_info->format);
 	max_bytes = lut->max_phases << size_shift;
@@ -402,15 +418,31 @@ static int pvi_wbf_decode_lut(struct drm_epd_lut *lut, const u8 *lut_data)
 		 */
 		copies = 1 + (state ? *in++ : 0);
 
-		total_bytes += copies;
+		total_bytes += (copies * 4);
 		if (total_bytes > max_bytes) {
 			drm_err(dev, "LUT contains too many phases\n");
 			lut->num_phases = 0;
 			return -EILSEQ;
 		}
 
-		while (copies--)
-			*out++ = token;
+		// due to the values being stored in transposed form, we need to
+		// decompose each byte separately
+		while (copies--){
+			*(out + ((frame * 0x400) + (x + 0) * 0x20 + y)) = (token >> 0) & 0x3;
+			*(out + ((frame * 0x400) + (x + 1) * 0x20 + y)) = (token >> 2) & 0x3;
+			*(out + ((frame * 0x400) + (x + 2) * 0x20 + y)) = (token >> 4) & 0x3;
+			*(out + ((frame * 0x400) + (x + 3) * 0x20 + y)) = (token >> 6) & 0x3;
+
+			x += 4;
+			if (x >= maxpic){
+				x = 0;
+				y++;
+				if (y >= maxpic) {
+					y = 0;
+					frame++;
+				}
+			}
+		}
 	}
 
 	lut->num_phases = total_bytes >> size_shift;
@@ -453,12 +485,14 @@ static int pvi_wbf_get_lut(struct drm_epd_lut *lut,
 	return 0;
 }
 
+/* we always convert from DRM_EPD_LUT_5BIT */
 static void drm_epd_lut_convert(const struct drm_epd_lut *lut)
 {
 	enum drm_epd_lut_format from = lut->file->mode_info->format;
 	enum drm_epd_lut_format to = lut->format;
 	u8 *buf = lut->buf;
 	size_t x, y;
+	unsigned int counter=0;
 
 	if (to == from)
 		return;
@@ -481,24 +515,28 @@ static void drm_epd_lut_convert(const struct drm_epd_lut *lut)
 		}
 		break;
 	case DRM_EPD_LUT_4BIT_PACKED:
-		for (y = 0; y < 16 * lut->num_phases; ++y) {
-			for (x = 4; x--;) {
-				u8 lo_byte = buf[16 * y + 2 * x + 0] & 0x33;
-				u8 hi_byte = buf[16 * y + 2 * x + 1] & 0x33;
+		counter = 0;
+		for (y=0; y < 1024 * lut->num_phases; y=y+64){
+			for (x=0; x<32; x=x+8){
+				int index;
+				u8 byte1, byte2, byte3, byte4;
 
-				/* Copy bits 4:5 => bits 2:3. */
-				lo_byte |= lo_byte >> 2;
-				hi_byte |= hi_byte >> 2;
+				index = y + x;
+				byte1 = buf[index];
+				byte2 = buf[index + 2];
+				byte3 = buf[index + 4];
+				byte4 = buf[index + 6];
 
-				buf[4 * y + x] = (lo_byte & 0xf) |
-						 (hi_byte << 4);
+				buf[counter] = byte1 | (byte2 << 2) |
+					(byte3 << 4) | (byte4 << 6);
+				counter++;
 			}
 		}
-		for (; y < 16 * lut->max_phases; ++y) {
-			for (x = 4; x--;) {
-				buf[4 * y + x] = 0;
-			}
+		// clear the rest of the lut table
+		for (y=counter; y < 1024 * lut->max_phases; y++){
+			buf[y] = 0;
 		}
+
 		break;
 	case DRM_EPD_LUT_5BIT:
 		memset(buf + 256 * lut->num_phases, 0,
@@ -627,11 +665,19 @@ int drmm_epd_lut_init(struct drm_epd_lut_file *file,
 	int ret;
 
 	/* Allocate a buffer large enough to convert the LUT in place. */
-	max_order = max(drm_epd_lut_size_shift(file->mode_info->format),
-			drm_epd_lut_size_shift(format));
+	max_order = max(
+			drm_epd_lut_size_shift(file->mode_info->format),
+			drm_epd_lut_size_shift(format)
+		);
+    /*
+     * due to the x/y switch we need to first convert to DRM_EPD_LUT_5BIT
+     * */
+    /* max_order = drm_epd_lut_size_shift(DRM_EPD_LUT_5BIT); */
+    // max_phases: 256
 	lut->buf = vmalloc(max_phases << max_order);
 	if (!lut->buf)
 		return -ENOMEM;
+	memset(lut->buf, 0, max_phases << max_order);
 
 	ret = drmm_add_action_or_reset(file->dev, drm_epd_lut_free, lut);
 	if (ret)
