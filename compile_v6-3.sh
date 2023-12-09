@@ -40,9 +40,5 @@ tar cvzf modules.tar.gz lib
 rm -r lib
 cd ../..
 
-echo ""
-echo "LS PACK"
-ls pack
-
 # extract the results from the Docker container
 cp -r linux/pack /github/home/pack_v6.3
