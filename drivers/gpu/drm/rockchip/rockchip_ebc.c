@@ -10,6 +10,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -18,6 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -177,6 +179,14 @@ struct rockchip_ebc {
 	// used to detect when we are suspending so we can do different things to
 	// the ebc display depending on whether we are sleeping or suspending
 	int suspend_was_requested;
+
+	u8				*prev;
+	u8				*next;
+	// this now is only pointer to either final_buffer[0] or final_buffer[1]
+	u8				*final;
+	u8				*final_buffer[2];
+	u8              *final_atomic_update;
+	u8				*phase[2];
 };
 
 static int default_waveform = DRM_EPD_WF_GC16;
@@ -218,6 +228,10 @@ MODULE_PARM_DESC(split_area_limit, "how many areas to split in each scheduling c
 static int limit_fb_blits = -1;
 module_param(limit_fb_blits, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(split_area_limit, "how many fb blits to allow. -1 does not limit");
+
+static bool no_off_screen = false;
+module_param(no_off_screen, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(no_off_screen, "If set to true, do not apply the offscreen on next loop exit");
 
 /* delay parameters used to delay the return of plane_atomic_atomic */
 /* see plane_atomic_update function for specific usage of these parameters */
@@ -312,11 +326,24 @@ static int ioctl_set_off_screen(struct drm_device *dev, void *data,
 struct rockchip_ebc_ctx {
 	struct kref			kref;
 	struct list_head		queue;
+
+	// see final_ebc/final_atomic_update for current use
 	spinlock_t			queue_lock;
 	u8				*prev;
 	u8				*next;
+	// this now is only pointer to either final_buffer[0] or final_buffer[1]
 	u8				*final;
+	u8				*final_buffer[2];
+	u8              *final_atomic_update;
 	u8				*phase[2];
+	// which buffer is in use by the ebc thread (0 or 1)?
+	int             ebc_buffer_index;
+	// the first time we get data from the atomic update function, both final
+	// buffers must be filled
+	bool            first_switch;
+	// we only want to switch between buffers when the buffer content actually
+	// changed
+	bool            switch_required;
 	u32				gray4_pitch;
 	u32				gray4_size;
 	u32				phase_pitch;
@@ -348,6 +375,7 @@ static int ioctl_extract_fbs(struct drm_device *dev, void *data,
 	copy_result |= copy_to_user(args->ptr_prev, ctx->prev, 1313144);
 	copy_result |= copy_to_user(args->ptr_next, ctx->next, 1313144);
 	copy_result |= copy_to_user(args->ptr_final, ctx->final, 1313144);
+	// TODO final_atomic_update ?
 
 	copy_result |= copy_to_user(args->ptr_phase1, ctx->phase[0], 2 * 1313144);
 	copy_result |= copy_to_user(args->ptr_phase2, ctx->phase[1], 2 * 1313144);
@@ -400,36 +428,41 @@ struct rockchip_ebc_area {
 static void rockchip_ebc_ctx_free(struct rockchip_ebc_ctx *ctx)
 {
 	struct rockchip_ebc_area *area;
+	pr_info("EBC: rockchip_ebc_ctx_free");
 
 	list_for_each_entry(area, &ctx->queue, list)
 		kfree(area);
+
 	kfree(ctx->prev);
 	kfree(ctx->next);
-	kfree(ctx->final);
+	kfree(ctx->final_buffer[0]);
+	kfree(ctx->final_buffer[1]);
+	kfree(ctx->final_atomic_update);
 	kfree(ctx->phase[0]);
 	kfree(ctx->phase[1]);
 	kfree(ctx);
 }
 
-static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(u32 width, u32 height)
+static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(struct rockchip_ebc *ebc, u32 width, u32 height)
 {
 	u32 gray4_size = width * height / 2;
 	u32 phase_size = width * height;
 	struct rockchip_ebc_ctx *ctx;
+	/* pr_info("ebc: %s", __func__); */
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
-	ctx->prev = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
-	ctx->next = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
-	ctx->final = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
-	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL | GFP_DMA);
-	// todo: investigate if we would need something like __GFP_DMA32 (which
-	// apparently is not allowed...)
-	// https://lkml.org/lkml/2022/4/5/2876
-	ctx->phase[1] = kmalloc(phase_size, GFP_KERNEL | GFP_DMA);
-	if (!ctx->prev || !ctx->next || !ctx->final ||
+
+	ctx->prev = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->next = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->final_buffer[0] = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->final_buffer[1] = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->final_atomic_update = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL);
+	ctx->phase[1] = kmalloc(phase_size, GFP_KERNEL);
+	if (!ctx->prev || !ctx->next || !ctx->final_buffer[0] || !ctx->final_buffer[1] || !ctx->final_atomic_update ||
 	    !ctx->phase[0] || !ctx->phase[1]) {
 		rockchip_ebc_ctx_free(ctx);
 		return NULL;
@@ -438,6 +471,10 @@ static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(u32 width, u32 height)
 	kref_init(&ctx->kref);
 	INIT_LIST_HEAD(&ctx->queue);
 	spin_lock_init(&ctx->queue_lock);
+	ctx->final = ctx->final_buffer[0];
+	ctx->ebc_buffer_index = 0;
+	ctx->first_switch = true;
+	ctx->switch_required = true;
 	ctx->gray4_pitch = width / 2;
 	ctx->gray4_size  = gray4_size;
 	ctx->phase_pitch = width;
@@ -454,6 +491,7 @@ static void rockchip_ebc_ctx_release(struct kref *kref)
 {
 	struct rockchip_ebc_ctx *ctx =
 		container_of(kref, struct rockchip_ebc_ctx, kref);
+	pr_info("ebc: %s", __func__);
 
 	return rockchip_ebc_ctx_free(ctx);
 }
@@ -477,8 +515,14 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 
 	spin_lock(&ctx->queue_lock);
 	list_splice_tail_init(&ctx->queue, &areas);
-	memcpy(ctx->next, ctx->final, gray4_size);
+	// switch buffers
+	if(ctx->switch_required){
+		ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
+		ctx->switch_required = false;
+	}
+	ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
 	spin_unlock(&ctx->queue_lock);
+	memcpy(ctx->next, ctx->final, gray4_size);
 
 	dma_sync_single_for_device(dev, next_handle, gray4_size, DMA_TO_DEVICE);
 	dma_sync_single_for_device(dev, prev_handle, gray4_size, DMA_TO_DEVICE);
@@ -573,6 +617,8 @@ static int try_to_split_area(
 	// skipping over our newly created items.
 
 	item1 = kmalloc(sizeof(*item1), GFP_KERNEL);
+	if (!item1)
+		pr_info("EBC ERROR: kmalloc item1");
 	if (split_both || no_xsplit)
 		item2 = kmalloc(sizeof(*item2), GFP_KERNEL);
 	if (split_both || no_ysplit)
@@ -661,6 +707,10 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 	struct rockchip_ebc_area *other;
 	// by default, begin now
 	u32 frame_begin = current_frame;
+	// we use this variable to define dead zones. When two area are (at first)
+	// scheduled to start together, but other frames later in the queue prevent
+	// that, then suddenly we need to wait for the other area.
+	u32 do_not_start_before_frame = 0;
 	/* printk(KERN_INFO "scheduling area: %i-%i %i-%i (current frame: %i)\n", area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, current_frame); */
 
 	list_for_each_entry(other, areas, list) {
@@ -690,8 +740,13 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 
 		/* If the other area already started, wait until it finishes. */
 		if (other->frame_begin < current_frame) {
-			frame_begin = max(frame_begin, other_end);
+			frame_begin = max(frame_begin, other_end + 1);
 			/* printk(KERN_INFO "        other already started, setting to %i (%i, %i)\n", frame_begin, num_phases, other_end); */
+			if (frame_begin < do_not_start_before_frame){
+				/* pr_info("      NOTE: dead zone, resetting to: %i", do_not_start_before_frame + 1); */
+				frame_begin = do_not_start_before_frame + 1;
+
+			}
 
 			// so here we would optimally want to split the new area into three
 			// parts that do not overlap with the already-started area, and one
@@ -700,7 +755,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 
 			// if the area is equal to the clip, continue
 			if (drm_rect_equals(&area->clip, &intersection)){
-				//printk(KERN_INFO "        intersection completely contains area\n");
+				/* printk(KERN_INFO "        intersection completely contains area\n"); */
 				continue;
 			}
 
@@ -724,17 +779,20 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 			/* printk(KERN_INFO "    dropping\n"); */
 			return false;
 		}
+		/* printk(KERN_INFO "    we are at: %i\n", frame_begin); */
 
 		/* They do overlap but are are not equal and both not started yet, so
 		 * they can potentially start together */
 		if (frame_begin > other->frame_begin){
 			// for some reason we need to begin later than the other region,
 			// which forces us to wait for the region
-			frame_begin = other_end;
+			frame_begin = other_end + 1;
+			/* pr_info(     "we need to wait"); */
 		} else {
-			/* frame_begin = max(frame_begin, other->frame_begin); */
 			// they can begin together
 			frame_begin = other->frame_begin;
+			do_not_start_before_frame = max(other_end, do_not_start_before_frame);
+			/* pr_info(     "begin together"); */
 		}
 
 		/* printk(KERN_INFO "    setting to: %i\n", frame_begin); */
@@ -899,32 +957,41 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 	LIST_HEAD(areas);
 	u32 frame;
 	u64 local_area_count = 0;
+	ktime_t times[100];
+	int time_index = 0;
+	s64 duration;
+	u32 min_frame_delay = 1000;
+	u32 max_frame_delay = 0;
 
 	dma_addr_t phase_handles[2];
-	phase_handles[0] = dma_map_single(dev, ctx->phase[0], ctx->gray4_size, DMA_TO_DEVICE);
-	phase_handles[1] = dma_map_single(dev, ctx->phase[1], ctx->gray4_size, DMA_TO_DEVICE);
+	phase_handles[0] = dma_map_single(dev, ctx->phase[0], ctx->phase_size, DMA_TO_DEVICE);
+	phase_handles[1] = dma_map_single(dev, ctx->phase[1], ctx->phase_size, DMA_TO_DEVICE);
 
+	times[time_index] = ktime_get();
+	time_index++;
 	for (frame = 0;; frame++) {
-		/* Swap phase buffers to minimize latency between frames. */
-		u8 *phase_buffer = ctx->phase[frame % 2];
-		dma_addr_t phase_handle = phase_handles[frame % 2];
+		/* do not swap phase buffers ... for now */
+		u8 *phase_buffer = ctx->phase[0];
+		dma_addr_t phase_handle = phase_handles[0];
 		bool sync_next = false;
 		bool sync_prev = false;
 		int split_counter = 0;
-		int gotlock;
 
 		// now the CPU is allowed to change the phase buffer
 		dma_sync_single_for_cpu(dev, phase_handle, ctx->phase_size, DMA_TO_DEVICE);
 
 		/* Move the queued damage areas to the local list. */
-		/* spin_lock(&ctx->queue_lock); */
-		/* list_splice_tail_init(&ctx->queue, &areas); */
-		/* gotlock = spin_trylock(&ctx->queue_lock); */
-		gotlock = true;
-		spin_lock(&ctx->queue_lock);
-        if (gotlock)
+		if (frame == 0){
+			spin_lock(&ctx->queue_lock);
 			list_splice_tail_init(&ctx->queue, &areas);
-		/* spin_unlock(&ctx->queue_lock); */
+			// switch buffers
+			if(ctx->switch_required){
+				ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
+				ctx->switch_required = false;
+			}
+			ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
+			spin_unlock(&ctx->queue_lock);
+		}
 
 		list_for_each_entry_safe(area, next_area, &areas, list) {
 			s32 frame_delta;
@@ -953,7 +1020,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				local_area_count += (u64) (
 					area->clip.x2 - area->clip.x1) *
 					(area->clip.y2 - area->clip.y1);
-				dma_sync_single_for_cpu(dev, next_handle, gray4_size, DMA_TO_DEVICE);
+				// only sync to cpu once
+				if (!sync_next)
+					dma_sync_single_for_cpu(dev, next_handle, gray4_size, DMA_TO_DEVICE);
 				rockchip_ebc_blit_pixels(ctx, ctx->next,
 							 ctx->final,
 							 &area->clip);
@@ -970,7 +1039,8 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 			 * last possible phase number), which is guaranteed to
 			 * be neutral for every waveform.
 			 */
-			phase = frame_delta >= last_phase ? 0xff : frame_delta;
+ 			phase = frame_delta >= last_phase ? 0xff : frame_delta;
+			/* phase = frame_delta; */
 			if (direct_mode)
 				rockchip_ebc_blit_direct(ctx, phase_buffer,
 							 phase, &ebc->lut,
@@ -1012,21 +1082,12 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		if (sync_prev)
 			dma_sync_single_for_device(dev, prev_handle,
 						   gray4_size, DMA_TO_DEVICE);
-		dma_sync_single_for_device(dev, phase_handle,
-					   ctx->phase_size, DMA_TO_DEVICE);
+		dma_sync_single_for_device(dev, phase_handle, ctx->phase_size, DMA_TO_DEVICE);
 
-		if (gotlock)
-			spin_unlock(&ctx->queue_lock);
-		/* spin_unlock(&ctx->queue_lock); */
-
-		/* if (frame) { */
-		/* 	if (!wait_for_completion_timeout(&ebc->display_end, */
-		/* 					 EBC_FRAME_TIMEOUT)) */
-		/* 		drm_err(drm, "Frame %d timed out!\n", frame); */
-		/* } */
-
-		if (list_empty(&areas))
+		if (list_empty(&areas)){
+			// TODO: should we try to splice the queue here before quitting?
 			break;
+		}
 
 		regmap_write(ebc->regmap,
 			     direct_mode ? EBC_WIN_MST0 : EBC_WIN_MST2,
@@ -1036,23 +1097,55 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		regmap_write(ebc->regmap, EBC_DSP_START,
 			     ebc->dsp_start |
 			     EBC_DSP_START_DSP_FRM_START);
-		/* if (frame) { */
-		/* 	if (!wait_for_completion_timeout(&ebc->display_end, */
-		/* 					 EBC_FRAME_TIMEOUT)) */
-		/* 		drm_err(drm, "Frame %d timed out!\n", frame); */
-		/* } */
+
+		// at this point the ebc is working. It does not access the final
+		// buffer directly, and therefore we can use the time to update the
+		// queue. Well, we probably only wait for the spinlock in case the
+		// atomic_update function is currently blitting
+
+		if (spin_trylock(&ctx->queue_lock)){
+			list_splice_tail_init(&ctx->queue, &areas);
+			// switch buffers
+			if(ctx->switch_required){
+				ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
+				ctx->switch_required = false;
+			}
+			ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
+			spin_unlock(&ctx->queue_lock);
+		}
+
 		if (!wait_for_completion_timeout(&ebc->display_end,
 						 EBC_FRAME_TIMEOUT))
 			drm_err(drm, "Frame %d timed out!\n", frame);
 
+		// record time after frame completed
+		if (time_index <= 59){
+			times[time_index] = ktime_get();
+			time_index++;
+		}
 
 		if (kthread_should_stop()) {
 			break;
 		};
 	}
-	dma_unmap_single(dev, phase_handles[0], ctx->gray4_size, DMA_TO_DEVICE);
-	dma_unmap_single(dev, phase_handles[1], ctx->gray4_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, phase_handles[0], ctx->phase_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, phase_handles[1], ctx->phase_size, DMA_TO_DEVICE);
+
 	ctx->area_count += local_area_count;
+
+	// print the min/max execution times from within the first 100 frames
+	for (int i=1; i <= min(time_index - 1, 99); i++){
+		duration = ktime_ms_delta(times[i], times[i-1]);
+		if (duration > max_frame_delay)
+			if (duration <= 100)
+					max_frame_delay = duration;
+		if (duration < min_frame_delay)
+			if (duration <= 100)
+				min_frame_delay = duration;
+		//pr_info("ebc: frame %i took %llu ms", i, duration);
+	}
+	pr_info("ebc: min/max frame durations: %u/%u [ms]", min_frame_delay, max_frame_delay);
+
 }
 
 static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
@@ -1188,6 +1281,12 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	dma_unmap_single(dev, next_handle, ctx->gray4_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, prev_handle, ctx->gray4_size, DMA_TO_DEVICE);
 
+	/* Drive the output pins low once the refresh is complete. */
+	regmap_write(ebc->regmap, EBC_DSP_START,
+		     ebc->dsp_start |
+		     EBC_DSP_START_DSP_OUT_LOW);
+
+
 	// do we need a full refresh
 	if (auto_refresh){
 		if (ctx->area_count >= refresh_threshold * one_screen_area){
@@ -1199,11 +1298,6 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 	} else {
 		ctx->area_count = 0;
 	}
-
-	/* Drive the output pins low once the refresh is complete. */
-	regmap_write(ebc->regmap, EBC_DSP_START,
-		     ebc->dsp_start |
-		     EBC_DSP_START_DSP_OUT_LOW);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -1241,19 +1335,29 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * (and thus prev != next) and when the refresh thread starts
 		 * counting phases for that region.
 		 */
+		memcpy(ctx->prev, ebc->suspend_prev, ctx->gray4_size);
 		if(ebc->suspend_was_requested == 1){
 			// this means we are coming out from suspend. Reset the buffers to
 			// the before-suspend state
-			memcpy(ctx->prev, ebc->suspend_prev, ctx->gray4_size);
+			/* memcpy(ctx->prev, ebc->suspend_prev, ctx->gray4_size); */
 			memcpy(ctx->final, ebc->suspend_next, ctx->gray4_size);
 			/* memset(ctx->prev, 0xff, ctx->gray4_size); */
 			memset(ctx->next, 0xff, ctx->gray4_size);
 			/* memset(ctx->final, 0xff, ctx->gray4_size); */
 			ebc->do_one_full_refresh = 1;
 		} else {
-			memset(ctx->prev, 0xff, ctx->gray4_size);
-			memset(ctx->next, 0xff, ctx->gray4_size);
-			memset(ctx->final, 0xff, ctx->gray4_size);
+			// only on first run
+			if (!ebc->reset_complete) {
+				/* memset(ctx->prev, 0xff, ctx->gray4_size); */
+				memset(ctx->next, 0xff, ctx->gray4_size);
+				memset(ctx->final_buffer[0], 0xff, ctx->gray4_size);
+				memset(ctx->final_buffer[1], 0xff, ctx->gray4_size);
+				memset(ctx->final_atomic_update, 0xff, ctx->gray4_size);
+			} else {
+				memcpy(ctx->next, ebc->suspend_next, ctx->gray4_size);
+				memcpy(ctx->final, ebc->suspend_next, ctx->gray4_size);
+				memcpy(ctx->final_atomic_update, ebc->suspend_next, ctx->gray4_size);
+			}
 		}
 
 		/* NOTE: In direct mode, the phase buffers are repurposed for
@@ -1268,6 +1372,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * known contents (white) regardless of its current contents.
 		 */
 		if (!ebc->reset_complete) {
+			pr_info("EBC STartup reset");
 			ebc->reset_complete = true;
 			rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_RESET);
 		}
@@ -1316,21 +1421,27 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * highest-quality waveform to minimize visible artifacts.
 		 */
 		memcpy(ebc->suspend_next, ctx->prev, ctx->gray4_size);
-		// WARNING: This check here does not work. if the ebc device was in
-		// runtime suspend at the time of suspending, we get the
-		// suspend_was_requested == 1 too late ...
-		// Therefore, for now do not differ in the way we treat the screen
-		// content. Would be nice to improve this in the future
-		if(ebc->suspend_was_requested){
-			/* printk(KERN_INFO "[rockchip_ebc] we want to suspend, do something"); */
-			memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
-		} else {
-			// shutdown/module remove
-			/* printk(KERN_INFO "[rockchip_ebc] normal shutdown/module unload"); */
-			memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+
+		if (!no_off_screen){
+			// WARNING: This check here does not work. if the ebc device was in
+			// runtime suspend at the time of suspending, we get the
+			// suspend_was_requested == 1 too late ...
+			// Therefore, for now do not differ in the way we treat the screen
+			// content. Would be nice to improve this in the future
+			if(ebc->suspend_was_requested){
+				/* printk(KERN_INFO "[rockchip_ebc] we want to suspend, do something"); */
+				memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+			} else {
+				// shutdown/module remove
+				/* printk(KERN_INFO "[rockchip_ebc] normal shutdown/module unload"); */
+				memcpy(ctx->final, ebc->off_screen, ctx->gray4_size);
+			}
+			/* memcpy(ctx->final, ebc->off_screen, ctx->gray4_size); */
+			rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
 		}
-		/* memcpy(ctx->final, ebc->off_screen, ctx->gray4_size); */
-		rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
+		else{
+			no_off_screen = false;
+		}
 
 		// save the prev buffer in case we need it after resuming
 		memcpy(ebc->suspend_prev, ctx->prev, ctx->gray4_size);
@@ -1357,6 +1468,7 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	u16 hact_start, vact_start;
 	u16 pixels_per_sdck;
 	bool bus_16bit;
+	/* pr_info("ebc: %s", __func__); */
 
 	/*
 	 * Hardware needs horizontal timings in SDCK (source driver clock)
@@ -1448,6 +1560,7 @@ static int rockchip_ebc_crtc_atomic_check(struct drm_crtc *crtc,
 	struct ebc_crtc_state *ebc_crtc_state;
 	struct drm_crtc_state *crtc_state;
 	struct rockchip_ebc_ctx *ctx;
+	/* pr_info("ebc: %s", __func__); */
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (!crtc_state->mode_changed)
@@ -1469,7 +1582,7 @@ static int rockchip_ebc_crtc_atomic_check(struct drm_crtc *crtc,
 			return rate;
 		mode->clock = rate / 1000;
 
-		ctx = rockchip_ebc_ctx_alloc(mode->hdisplay, mode->vdisplay);
+		ctx = rockchip_ebc_ctx_alloc(ebc, mode->hdisplay, mode->vdisplay);
 		if (!ctx)
 			return -ENOMEM;
 	} else {
@@ -1487,6 +1600,7 @@ static int rockchip_ebc_crtc_atomic_check(struct drm_crtc *crtc,
 static void rockchip_ebc_crtc_atomic_flush(struct drm_crtc *crtc,
 					   struct drm_atomic_state *state)
 {
+	/* pr_info("ebc: %s", __func__); */
 }
 
 static void rockchip_ebc_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -1494,6 +1608,7 @@ static void rockchip_ebc_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct rockchip_ebc *ebc = crtc_to_ebc(crtc);
 	struct drm_crtc_state *crtc_state;
+	/* pr_info("ebc: %s", __func__); */
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (crtc_state->mode_changed)
@@ -1505,6 +1620,7 @@ static void rockchip_ebc_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct rockchip_ebc *ebc = crtc_to_ebc(crtc);
 	struct drm_crtc_state *crtc_state;
+	/* pr_info("ebc: %s", __func__); */
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (crtc_state->mode_changed){
@@ -1528,6 +1644,7 @@ static void rockchip_ebc_crtc_destroy_state(struct drm_crtc *crtc,
 static void rockchip_ebc_crtc_reset(struct drm_crtc *crtc)
 {
 	struct ebc_crtc_state *ebc_crtc_state;
+	/* pr_info("ebc: %s", __func__); */
 
 	if (crtc->state)
 		rockchip_ebc_crtc_destroy_state(crtc, crtc->state);
@@ -1543,6 +1660,7 @@ static struct drm_crtc_state *
 rockchip_ebc_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct ebc_crtc_state *ebc_crtc_state;
+	/* pr_info("ebc: %s", __func__); */
 
 	if (!crtc->state)
 		return NULL;
@@ -1733,7 +1851,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 	test1 = panel_reflection ? adjust_x1 : adjust_x2;
 	test2 = panel_reflection ? adjust_x2 : adjust_x1;
 
-	dst = ctx->final + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
+	dst = ctx->final_atomic_update + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
 	src = vaddr + start_y * src_pitch + start_x * fb->format->cpp[0];
 
 	for (y = src_clip->y1; y < end_y2; y++) {
@@ -1873,13 +1991,13 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	crtc_state = drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	ctx = to_ebc_crtc_state(crtc_state)->ctx;
 
-	spin_lock(&ctx->queue_lock);
 	drm_rect_fp_to_int(&src, &plane_state->src);
 	translate_x = plane_state->dst.x1 - src.x1;
 	translate_y = plane_state->dst.y1 - src.y1;
 
 	ebc_plane_state = to_ebc_plane_state(plane_state);
 	vaddr = ebc_plane_state->base.data[0].vaddr;
+	/* pr_info("ebc atomic update: vaddr: 0x%px", vaddr); */
 
 	/* printk(KERN_INFO "[rockchip-ebc] new fb clips\n"); */
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list) {
@@ -1990,19 +2108,38 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	/* ); */
 
 	if (list_empty(&ebc_plane_state->areas)){
-		spin_unlock(&ctx->queue_lock);
+		// spin_unlock(&ctx->queue_lock);
 		// the idea here: give the refresh thread time to acquire the lock
 		// before new clips arrive
-		/* usleep_range(delay, delay + 500); */
+		usleep_range(delay, delay + 500);
 		return;
 	}
 
-	/* spin_lock(&ctx->queue_lock); */
+	spin_lock(&ctx->queue_lock);
+	// copy into the buffer that is NOT in use by the ebc thread
+	memcpy(
+		ctx->final_buffer[!ctx->ebc_buffer_index],
+	   	ctx->final_atomic_update,
+	   	ctx->gray4_size
+	);
+	if (ctx->first_switch){
+		memcpy(
+			ctx->final_buffer[ctx->ebc_buffer_index],
+			ctx->final_atomic_update,
+			ctx->gray4_size
+		);
+
+		ctx->first_switch = false;
+	}
 	list_splice_tail_init(&ebc_plane_state->areas, &ctx->queue);
+	// we actually changed the buffer content
+	ctx->switch_required = true;
 	spin_unlock(&ctx->queue_lock);
+
 	// the idea here: give the refresh thread time to acquire the lock
 	// before new clips arrive
-	/* usleep_range(delay, delay + 100); */
+	usleep_range(delay, delay + 100);
+	/* usleep_range(2000, 2000 + 100); */
 
 	wake_up_process(ebc->refresh_thread);
 }
@@ -2022,6 +2159,7 @@ static void rockchip_ebc_plane_destroy_state(struct drm_plane *plane,
 static void rockchip_ebc_plane_reset(struct drm_plane *plane)
 {
 	struct ebc_plane_state *ebc_plane_state;
+	pr_info("ebc: %s", __func__);
 
 	if (plane->state)
 		rockchip_ebc_plane_destroy_state(plane, plane->state);
@@ -2039,6 +2177,7 @@ static struct drm_plane_state *
 rockchip_ebc_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct ebc_plane_state *ebc_plane_state;
+	/* pr_info("ebc: %s", __func__); */
 
 	if (!plane->state)
 		return NULL;
@@ -2059,6 +2198,7 @@ static void rockchip_ebc_plane_destroy_state(struct drm_plane *plane,
 {
 	struct ebc_plane_state *ebc_plane_state = to_ebc_plane_state(plane_state);
 	struct rockchip_ebc_area *area, *next_area;
+	/* pr_info("ebc: %s", __func__); */
 
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list)
 		kfree(area);
@@ -2173,6 +2313,7 @@ static int __maybe_unused rockchip_ebc_suspend(struct device *dev)
 {
 	struct rockchip_ebc *ebc = dev_get_drvdata(dev);
 	int ret;
+	pr_info("%s", __func__);
 
 	ebc->suspend_was_requested = 1;
 
@@ -2310,6 +2451,9 @@ static int rockchip_ebc_probe(struct platform_device *pdev)
 
 	ebc = devm_drm_dev_alloc(dev, &rockchip_ebc_drm_driver,
 				 struct rockchip_ebc, drm);
+
+	// TODO: Error checking
+
 	ebc->do_one_full_refresh = true;
 	ebc->suspend_was_requested = 0;
 
@@ -2401,6 +2545,7 @@ static int rockchip_ebc_remove(struct platform_device *pdev)
 {
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
+	pr_info("%s executing", __func__);
 
 	drm_dev_unregister(&ebc->drm);
 	kthread_stop(ebc->refresh_thread);
@@ -2417,6 +2562,7 @@ static void rockchip_ebc_shutdown(struct platform_device *pdev)
 {
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
+	pr_info("%s executing", __func__);
 
 	kthread_stop(ebc->refresh_thread);
 	drm_atomic_helper_shutdown(&ebc->drm);
