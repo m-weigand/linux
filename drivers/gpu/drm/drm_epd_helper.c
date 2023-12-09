@@ -492,7 +492,6 @@ static void drm_epd_lut_convert(const struct drm_epd_lut *lut)
 	enum drm_epd_lut_format to = lut->format;
 	u8 *buf = lut->buf;
 	size_t x, y;
-	u8 *bytepointer;
 	unsigned int counter=0;
 
 	if (to == from)
@@ -534,7 +533,7 @@ static void drm_epd_lut_convert(const struct drm_epd_lut *lut)
 			}
 		}
 		// clear the rest of the lut table
-		for (y=1024 * lut->num_phases; y < 1024 * lut->num_phases; y++){
+		for (y=counter; y < 1024 * lut->max_phases; y++){
 			buf[y] = 0;
 		}
 
@@ -678,6 +677,7 @@ int drmm_epd_lut_init(struct drm_epd_lut_file *file,
 	lut->buf = vmalloc(max_phases << max_order);
 	if (!lut->buf)
 		return -ENOMEM;
+	memset(lut->buf, 0, max_phases << max_order);
 
 	ret = drmm_add_action_or_reset(file->dev, drm_epd_lut_free, lut);
 	if (ret)
