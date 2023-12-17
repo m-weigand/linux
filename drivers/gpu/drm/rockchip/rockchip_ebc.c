@@ -1065,7 +1065,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 							 ctx->next,
 							 &area->clip);
 				sync_prev = true;
-				sync_prev = true;
+				sync_next = true;
 
 				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") finished on %u\n",
 					area, DRM_RECT_ARG(&area->clip), frame);
