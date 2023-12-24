@@ -768,7 +768,7 @@ static const struct of_device_id tps65185_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps65185_of_match);
 
 static struct i2c_driver tps65185_driver = {
-	.probe_new	= tps65185_probe,
+	.probe	= tps65185_probe,
 	.driver		= {
 		.name		= "tps65185",
 		.pm		= &tps65185_pm,
