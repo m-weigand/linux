@@ -129,6 +129,19 @@
 		};
 	};
 
+	/* reserved-memory { */
+	/*      #address-cells = <0x00000002>; */
+	 /* #size-cells = <0x00000002>; */
+	/*      ranges; */
+
+	 /* ebcframebuffer: buffer@10900000 { */
+	/*              compatible = "shared-dma-pool"; */
+	/*              no-map; */
+	/*              reg = <0x00000000 0x10900000 0x00000000 0x02000000>; */
+	 /* }; */
+	/* }; */
+
+
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
