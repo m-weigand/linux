@@ -25,10 +25,14 @@ jobs:
       #   with:
       #     name: pinenote_kernel_module_dtb_v6.2
       #     path: /home/runner/work/_temp/_github_home/pack_v6.2/
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     name: pinenote_kernel_module_dtb_v6.3
+      #     path: /home/runner/work/_temp/_github_home/pack_v6.3/
       - uses: actions/upload-artifact@v3
         with:
-          name: pinenote_kernel_module_dtb_v6.3
-          path: /home/runner/work/_temp/_github_home/pack_v6.3/
+          name: pinenote_kernel_module_dtb_v6.6
+          path: /home/runner/work/_temp/_github_home/pack_v6.6/
 
   do_release:
     runs-on: ubuntu-latest
@@ -46,5 +50,7 @@ jobs:
         with:
           draft: true
           files: |
-            artifacts/pinenote_kernel_module_dtb_v6.3/*.deb
-            artifacts/pinenote_kernel_module_dtb_v6.3/linux-upstream*
+            # artifacts/pinenote_kernel_module_dtb_v6.3/*.deb
+            # artifacts/pinenote_kernel_module_dtb_v6.3/linux-upstream*
+            artifacts/pinenote_kernel_module_dtb_v6.6/*.deb
+            artifacts/pinenote_kernel_module_dtb_v6.6/linux-upstream*
