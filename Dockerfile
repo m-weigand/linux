@@ -14,6 +14,9 @@ COPY compile.sh /root/kernel/
 RUN mkdir /root/kernel_v6.3
 COPY compile_v6-3.sh /root/kernel_v6.3/
 
+RUN mkdir /root/kernel_v6.6
+COPY compile_v6-6.sh /root/kernel_v6.6/
+
 COPY compile_all.sh /root/
 
 ENTRYPOINT /root/compile_all.sh
