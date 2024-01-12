@@ -455,12 +455,12 @@ static struct rockchip_ebc_ctx *rockchip_ebc_ctx_alloc(struct rockchip_ebc *ebc,
 		return NULL;
 
 
-	ctx->prev = kmalloc(gray4_size, GFP_KERNEL);
-	ctx->next = kmalloc(gray4_size, GFP_KERNEL);
+	ctx->prev = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
+	ctx->next = kmalloc(gray4_size, GFP_KERNEL | GFP_DMA);
 	ctx->final_buffer[0] = kmalloc(gray4_size, GFP_KERNEL);
 	ctx->final_buffer[1] = kmalloc(gray4_size, GFP_KERNEL);
 	ctx->final_atomic_update = kmalloc(gray4_size, GFP_KERNEL);
-	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL);
+	ctx->phase[0] = kmalloc(phase_size, GFP_KERNEL | GFP_DMA);
 	ctx->phase[1] = kmalloc(phase_size, GFP_KERNEL);
 	if (!ctx->prev || !ctx->next || !ctx->final_buffer[0] || !ctx->final_buffer[1] || !ctx->final_atomic_update ||
 	    !ctx->phase[0] || !ctx->phase[1]) {
@@ -965,7 +965,13 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 
 	dma_addr_t phase_handles[2];
 	phase_handles[0] = dma_map_single(dev, ctx->phase[0], ctx->phase_size, DMA_TO_DEVICE);
-	phase_handles[1] = dma_map_single(dev, ctx->phase[1], ctx->phase_size, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, phase_handles[0])) {
+		drm_err(drm, "phase_handles[0] dma mapping error");
+	}
+	/* phase_handles[1] = dma_map_single(dev, ctx->phase[1], ctx->phase_size, DMA_TO_DEVICE); */
+	/* if (dma_mapping_error(dev, phase_handles[1])) { */
+	/* 	drm_err(drm, "phase_handles[0] dma mapping error"); */
+	/* } */
 
 	times[time_index] = ktime_get();
 	time_index++;
@@ -1129,7 +1135,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		};
 	}
 	dma_unmap_single(dev, phase_handles[0], ctx->phase_size, DMA_TO_DEVICE);
-	dma_unmap_single(dev, phase_handles[1], ctx->phase_size, DMA_TO_DEVICE);
+	/* dma_unmap_single(dev, phase_handles[1], ctx->phase_size, DMA_TO_DEVICE); */
 
 	ctx->area_count += local_area_count;
 
@@ -1265,7 +1271,13 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 			   dsp_ctrl);
 
 	next_handle = dma_map_single(dev, ctx->next, ctx->gray4_size, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, next_handle)) {
+		drm_err(drm, "next_handle dma mapping error");
+	}
 	prev_handle = dma_map_single(dev, ctx->prev, ctx->gray4_size, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, prev_handle)) {
+		drm_err(drm, "prev_handle dma mapping error");
+	}
 
 	regmap_write(ebc->regmap, EBC_WIN_MST1,
 		     next_handle);
@@ -2448,6 +2460,11 @@ static int rockchip_ebc_probe(struct platform_device *pdev)
 	struct rockchip_ebc *ebc;
 	void __iomem *base;
 	int i, ret;
+	pr_info("%s start", __func__);
+
+	if (dma_set_mask(dev, DMA_BIT_MASK(32))){
+		dev_warn(dev, "rockchip-ebc: No suitable DMA available\n");
+	}
 
 	ebc = devm_drm_dev_alloc(dev, &rockchip_ebc_drm_driver,
 				 struct rockchip_ebc, drm);
@@ -2545,7 +2562,7 @@ static int rockchip_ebc_remove(struct platform_device *pdev)
 {
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	pr_info("%s executing", __func__);
+	// pr_info("%s executing", __func__);
 
 	drm_dev_unregister(&ebc->drm);
 	kthread_stop(ebc->refresh_thread);
@@ -2562,7 +2579,7 @@ static void rockchip_ebc_shutdown(struct platform_device *pdev)
 {
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	pr_info("%s executing", __func__);
+	// pr_info("%s executing", __func__);
 
 	kthread_stop(ebc->refresh_thread);
 	drm_atomic_helper_shutdown(&ebc->drm);
