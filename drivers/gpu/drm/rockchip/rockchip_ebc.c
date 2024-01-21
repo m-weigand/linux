@@ -274,6 +274,14 @@ static int temp_override = 0;
 module_param(temp_override, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(temp_override, "Values > 0 override the temperature");
 
+static int temp_offset = 0;
+module_param(temp_offset, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(temp_offset, "Values > 0 is subtracted from the temperature to compensate for the pcb sensor being hotter than the display");
+
+static int panel_temp = 0;
+module_param(panel_temp, int, S_IRUGO);
+MODULE_PARM_DESC(panel_temp, "The currently used value for the panel temperature");
+
 
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
@@ -1178,8 +1186,16 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 
 		if (temp_override > 0){
 			printk(KERN_INFO "rockchip-ebc: override temperature from %i to %i\n", temp_override, temperature);
-            temperature = temp_override;
-        }
+            		temperature = temp_override;
+        	} else if (temp_offset > 0){
+			//int old_val = temperature;
+			if (temperature > temp_offset)
+				temperature -= temp_offset;
+			else
+				temperature = 0;
+			//printk(KERN_INFO "rockchip-ebc: temp offset from %i to %i\n", old_val, temperature);
+		}
+		panel_temp = temperature;
 
 		ret = drm_epd_lut_set_temperature(&ebc->lut, temperature);
 		if (ret < 0)
