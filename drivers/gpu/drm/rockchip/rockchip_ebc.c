@@ -274,6 +274,13 @@ static int temp_override = 0;
 module_param(temp_override, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(temp_override, "Values > 0 override the temperature");
 
+/* Values for testing should be multiples of 8 and >= 8
+ *
+ * */
+static int hskew_override = 0;
+module_param(hskew_override, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(hskew_override, "Override hskew value");
+
 
 DEFINE_DRM_GEM_FOPS(rockchip_ebc_fops);
 
@@ -1481,6 +1488,25 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	u16 pixels_per_sdck;
 	bool bus_16bit;
 	/* pr_info("ebc: %s", __func__); */
+	/* from drm_modes.h:
+	 * * The horizontal and vertical timings are defined per the following diagram.
+	 *
+	 * ::
+	 *
+	 *
+	 *               Active                 Front           Sync           Back
+	 *              Region                 Porch                          Porch
+	 *     <-----------------------><----------------><-------------><-------------->
+	 *       //////////////////////|
+	 *      ////////////////////// |
+	 *     //////////////////////  |..................               ................
+	 *                                                _______________
+	 *     <----- [hv]display ----->
+	 *     <------------- [hv]sync_start ------------>
+	 *     <--------------------- [hv]sync_end --------------------->
+	 *     <-------------------------------- [hv]total ----------------------------->*
+	 *
+	 * */
 
 	/*
 	 * Hardware needs horizontal timings in SDCK (source driver clock)
@@ -1493,13 +1519,26 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	sdck.hsync_start = mode.hsync_start / pixels_per_sdck;
 	sdck.hsync_end = mode.hsync_end / pixels_per_sdck;
 	sdck.htotal = mode.htotal / pixels_per_sdck;
-	sdck.hskew = mode.hskew / pixels_per_sdck;
+
+	if (hskew_override > 0){
+		pr_info(
+			"rockchip-ebc: overriding hskew value %i with new value: %i",
+				mode.hskew, hskew_override
+		);
+		sdck.hskew = hskew_override / pixels_per_sdck;
+	} else {
+		// use the value supplied via the panel mode
+		sdck.hskew = mode.hskew / pixels_per_sdck;
+	}
 
 	/*
 	 * Linux timing order is display/fp/sync/bp. Hardware timing order is
 	 * sync/bp/display/fp, aka sync/start/display/end.
 	 */
 	hact_start = sdck.htotal - sdck.hsync_start;
+	// mode.vtotal = 1404 + 12 + 1 + 4
+	// mode.vsync_start = 1404 + 12
+	// vact_start = 5
 	vact_start = mode.vtotal - mode.vsync_start;
 
 	hsync_width = sdck.hsync_end - sdck.hsync_start;
@@ -1512,12 +1551,30 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	else if (dclk_select == 1)
 		clk_set_rate(ebc->dclk, 250000000);
 
+	/* Display timings in ebc hardware:
+	+        * GD_ST
+	+        * GD_END
+	+        * HTOTAL
+	+        * HS_END
+	+        * HACT_END
+	+        * HACT_ST
+	+        * VTOTAL
+	+        * VS_END
+	+        * VACT_END
+	+        * VACT_ST
+	+        * DSP_ACT_HEIGHT
+	+        * DSP_ACT_WIDTH
+	+        *
+	+        * */
+
 	ebc->dsp_start = EBC_DSP_START_DSP_SDCE_WIDTH(sdck.hdisplay) |
 			 EBC_DSP_START_SW_BURST_CTRL;
+
 	regmap_write(ebc->regmap, EBC_EPD_CTRL,
 		     EBC_EPD_CTRL_DSP_GD_END(sdck.htotal - sdck.hskew) |
 		     EBC_EPD_CTRL_DSP_GD_ST(hsync_width + sdck.hskew) |
 		     EBC_EPD_CTRL_DSP_SDDW_MODE * bus_16bit);
+
 	regmap_write(ebc->regmap, EBC_DSP_CTRL,
 		     /* no swap */
 		     EBC_DSP_CTRL_DSP_SWAP_MODE(bus_16bit ? 2 : 3) |
@@ -1530,16 +1587,25 @@ static void rockchip_ebc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		     EBC_DSP_HTIMING1_DSP_HACT_END(hact_start + sdck.hdisplay) |
 		     /* minus 1 for fixed delay in timing sequence */
 		     EBC_DSP_HTIMING1_DSP_HACT_ST(hact_start - 1));
+
+	/* vertical timings */
 	regmap_write(ebc->regmap, EBC_DSP_VTIMING0,
 		     EBC_DSP_VTIMING0_DSP_VTOTAL(mode.vtotal) |
 		     /* sync end == sync width */
+			 /* mw: when comparing the data sheets, this is equal to FEL of the display, translating to 12 frames
+			  * yet, here vsync_width computes to 1*/
+			 // = 1
 		     EBC_DSP_VTIMING0_DSP_VS_END(vsync_width));
 	regmap_write(ebc->regmap, EBC_DSP_VTIMING1,
 		     EBC_DSP_VTIMING1_DSP_VACT_END(vact_start + mode.vdisplay) |
 		     EBC_DSP_VTIMING1_DSP_VACT_ST(vact_start));
+
+	/* active region */
 	regmap_write(ebc->regmap, EBC_DSP_ACT_INFO,
 		     EBC_DSP_ACT_INFO_DSP_HEIGHT(mode.vdisplay) |
 		     EBC_DSP_ACT_INFO_DSP_WIDTH(mode.hdisplay));
+
+	/* misc */
 	regmap_write(ebc->regmap, EBC_WIN_CTRL,
 		     /* FIFO depth - 16 */
 		     EBC_WIN_CTRL_WIN2_FIFO_THRESHOLD(496) |
