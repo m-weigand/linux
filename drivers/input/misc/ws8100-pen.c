@@ -599,7 +599,7 @@ static ssize_t scan_show(struct device *dev,
 			pen->scan_result_count);
 
 	for (i = 0; i < pen->scan_result_count; ++i)
-		count += sprintf(buf, "%pM\n", pen->scan_results[i]);
+		count = sprintf(buf, "%s%pM\n", buf, pen->scan_results[i]);
 
 	mutex_unlock(&pen->scan_results_mutex);
 
