@@ -132,16 +132,62 @@ static int rga_s_ctrl(struct v4l2_ctrl *ctrl)
 	spin_lock_irqsave(&ctx->rga->ctrl_lock, flags);
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
+		printk(KERN_INFO "V4L2_CID_HFLIP: %i -> %i\n", ctx->hflip, ctrl->val);
+		if (ctx->dither_down_enable){
+			// dither does not work with h/v-flip
+			spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
+			return -EINVAL;
+		}
 		ctx->hflip = ctrl->val;
 		break;
 	case V4L2_CID_VFLIP:
+		printk(KERN_INFO "V4L2_CID_VFLIP: %i -> %i\n", ctx->vflip, ctrl->val);
+		if (ctx->dither_down_enable){
+			// dither does not work with h/v-flip
+			spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
+			return -EINVAL;
+		}
 		ctx->vflip = ctrl->val;
 		break;
 	case V4L2_CID_ROTATE:
+		if (ctx->dither_down_enable){
+			// dither does not work with rotation
+			spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
+			return -EINVAL;
+		}
 		ctx->rotate = ctrl->val;
 		break;
 	case V4L2_CID_BG_COLOR:
 		ctx->fill_color = ctrl->val;
+		break;
+	case RGA_V4L2_CID_Y400_ENABLE:
+		printk(KERN_INFO "RGA_V4L2_CID_Y400_ENABLE: %i -> %i\n", ctx->yuv400_enable, ctrl->val);
+		ctx->yuv400_enable = ctrl->val;
+		break;
+	case RGA_V4L2_CID_DITHER_DOWN_ENABLE:
+		printk(KERN_INFO "RGA_V4L2_CID_DITHER_DOWN_ENABLE: %i -> %i\n", ctx->dither_down_enable, ctrl->val);
+		if (ctx->vflip || ctx->hflip || ctx->rotate != 0){
+			// dither does not work with rotation or flips
+			spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
+			return -EINVAL;
+		}
+		ctx->dither_down_enable = ctrl->val;
+		break;
+	case RGA_V4L2_CID_DITHER_DOWN_MODE:
+		printk(KERN_INFO "RGA_V4L2_CID_DITHER_DOWN_MODE: %i->%i\n", ctx->dither_down_mode, ctrl->val);
+		ctx->dither_down_mode = ctrl->val;
+		break;
+	case RGA_V4L2_CID_Y4_ENABLE:
+		printk(KERN_INFO "RGA_V4L2_CID_Y4_ENABLE: %u\n", ctrl->val);
+		ctx->y4_enable = ctrl->val;
+		break;
+	case RGA_V4L2_CID_Y4MAP_LUT0:
+		printk(KERN_INFO "RGA_V4L2_CID_Y4MAP_LUT0: %u\n", ctrl->val);
+		ctx->y4map_lut0 = ctrl->val;
+		break;
+	case RGA_V4L2_CID_Y4MAP_LUT1:
+		printk(KERN_INFO "RGA_V4L2_CID_Y4MAP_LUT1: %u\n", ctrl->val);
+		ctx->y4map_lut1 = ctrl->val;
 		break;
 	}
 	spin_unlock_irqrestore(&ctx->rga->ctrl_lock, flags);
@@ -152,11 +198,78 @@ static const struct v4l2_ctrl_ops rga_ctrl_ops = {
 	.s_ctrl = rga_s_ctrl,
 };
 
+
+static const struct v4l2_ctrl_config ctrl_y400_enable = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y400_ENABLE,
+	.name = "Enable Y400 conversion",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 0,
+};
+
+static const struct v4l2_ctrl_config ctrl_dithering_down_enable = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_DITHER_DOWN_ENABLE,
+	.name = "Enable dither down",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 0,
+};
+
+static const struct v4l2_ctrl_config ctrl_dithering_down_mode = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_DITHER_DOWN_MODE,
+	.name = "Dither down mode",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 4,
+	.step = 1,
+	.def = 0,
+};
+
+static const struct v4l2_ctrl_config ctrl_y4_enable = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y4_ENABLE,
+	.name = "Enable Y4 conversion",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 0,
+};
+
+static const struct v4l2_ctrl_config ctrl_y4_map_lut0 = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y4MAP_LUT0,
+	.name = "Set Y4MAP LUT0",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 0xffffffff,
+	.step = 1,
+	.def = 0x76543210,
+};
+
+static const struct v4l2_ctrl_config ctrl_y4_map_lut1 = {
+	.ops = &rga_ctrl_ops,
+	.id = RGA_V4L2_CID_Y4MAP_LUT1,
+	.name = "Set Y4MAP LUT1",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 0xffffffff,
+	.step = 1,
+	.def = 0xfedcba98,
+};
+
 static int rga_setup_ctrls(struct rga_ctx *ctx)
 {
 	struct rockchip_rga *rga = ctx->rga;
 
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 4);
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 10);
 
 	v4l2_ctrl_new_std(&ctx->ctrl_handler, &rga_ctrl_ops,
 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
@@ -169,6 +282,13 @@ static int rga_setup_ctrls(struct rga_ctx *ctx)
 
 	v4l2_ctrl_new_std(&ctx->ctrl_handler, &rga_ctrl_ops,
 			  V4L2_CID_BG_COLOR, 0, 0xffffffff, 1, 0);
+
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y400_enable, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_dithering_down_enable, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_dithering_down_mode, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_enable, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_map_lut0, NULL);
+	v4l2_ctrl_new_custom(&ctx->ctrl_handler, &ctrl_y4_map_lut1, NULL);
 
 	if (ctx->ctrl_handler.error) {
 		int err = ctx->ctrl_handler.error;
@@ -298,6 +418,17 @@ static struct rga_fmt formats[] = {
 		.uv_factor = 4,
 		.y_div = 2,
 		.x_div = 2,
+	},
+	{
+		.fourcc = V4L2_PIX_FMT_Y4,
+		.color_swap = RGA_COLOR_NONE_SWAP,
+		/* hard will switch from yuv420P to yuv400 when y4 conversion is
+		 * activated using the relevant registers*/
+		.hw_format = RGA_COLOR_FMT_YUV420P,
+		.depth = 4,
+		.uv_factor = 1,
+		.y_div = 1,
+		.x_div = 1,
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_YUV422P,
@@ -493,7 +624,10 @@ static int vidioc_try_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	if (f->fmt.pix.height < MIN_HEIGHT)
 		f->fmt.pix.height = MIN_HEIGHT;
 
-	if (fmt->hw_format >= RGA_COLOR_FMT_YUV422SP)
+	// assume that FMT_Y4 also implies y4_enable and y400_enable
+	if (fmt->fourcc == V4L2_PIX_FMT_Y4)
+		f->fmt.pix.bytesperline = f->fmt.pix.width / 2;
+	else if (fmt->hw_format >= RGA_COLOR_FMT_YUV422SP)
 		f->fmt.pix.bytesperline = f->fmt.pix.width;
 	else
 		f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
@@ -516,6 +650,7 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	/* Adjust all values accordingly to the hardware capabilities
 	 * and chosen format.
 	 */
+
 	ret = vidioc_try_fmt(file, prv, f);
 	if (ret)
 		return ret;
@@ -964,6 +1099,9 @@ static const struct of_device_id rockchip_rga_match[] = {
 	},
 	{
 		.compatible = "rockchip,rk3399-rga",
+	},
+	{
+		.compatible = "rockchip,rk356x-rga",
 	},
 	{},
 };
