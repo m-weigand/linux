@@ -200,11 +200,51 @@ static int st_accel_i2c_probe(struct i2c_client *client)
 	return st_accel_common_probe(indio_dev);
 }
 
+static int __maybe_unused st_accel_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev;
+	int ret;
+	struct st_sensor_data *sdata;
+
+	indio_dev = i2c_get_clientdata(client);
+	sdata = iio_priv(indio_dev);
+	pr_info("%s", __func__);
+	st_sensors_set_enable(indio_dev, false);
+	st_sensors_set_dataready_irq(indio_dev, false);
+	disable_irq(sdata->irq);
+
+	return 0;
+}
+
+static int __maybe_unused st_accel_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct iio_dev *indio_dev;
+	struct st_sensor_data *sdata;
+	int ret;
+
+	indio_dev = i2c_get_clientdata(client);
+	sdata = iio_priv(indio_dev);
+
+	pr_info("%s", __func__);
+	st_sensors_set_enable(indio_dev, true);
+	st_sensors_set_dataready_irq(indio_dev, true);
+	// enabling the irq here will reduce the number of spurious irqs, and the
+	// device will keep on working after resume.
+	// Still not enough...
+	enable_irq(sdata->irq);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(st_accel_pm, st_accel_suspend, st_accel_resume);
+
 static struct i2c_driver st_accel_driver = {
 	.driver = {
 		.name = "st-accel-i2c",
 		.of_match_table = st_accel_of_match,
 		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
+		.pm		= &st_accel_pm,
 	},
 	.probe = st_accel_i2c_probe,
 	.id_table = st_accel_id_table,
