@@ -1,6 +1,26 @@
 # Description of new branches and merge order
 
+** If you are looking for a PineNote kernel, use the branch_pinenote_6-6-22 branch (https://github.com/m-weigand/linux/tree/branch_pinenote_6-6-22)**
+
 ## Branches
+
+* **branch_pinenote_6-6-22** A v6.6.22 kernel with various patches for the
+  PineNote applied:
+  This branch was created by merging the following branches on top of v6.6.22:
+	* branch_rebase_6.6.22_btpen
+	* branch_rebase_6.6.22_cyttsp5
+	* branch_rebase_6.6.22_defconfig
+	* branch_rebase_6.6.22_ebc
+	* branch_rebase_6.6.22_iio_accel
+	* branch_rebase_6.6.22_lm3630a
+	* branch_rebase_6.6.22_pn_dts_v2
+	* branch_rebase_6.6.22_quartz64
+	* branch_rebase_6.6.22_rga2
+	* branch_rebase_6.6.22_rk817
+	* branch_rebase_6.6.22_rk_suspend_driver
+	* branch_rebase_6.6.22_tps65185
+
+## Branch description, old and incomplete
 
 * (pinenote_6-2_v3)[https://github.com/m-weigand/linux/tree/pinenote_6-2_v3] --
   Kernel 6.2 with patches applied to work on the Pinenote. See section below

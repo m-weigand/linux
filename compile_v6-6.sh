@@ -3,7 +3,7 @@
 cd /root/kernel_v6.6
 
 if [ ! -d linux ]; then
-	branch="branch_pinenote_6-6-11_from_v1"
+	branch="branch_pinenote_6-6-12"
 	git clone --depth 1 --branch ${branch} https://github.com/m-weigand/linux
 fi
 
