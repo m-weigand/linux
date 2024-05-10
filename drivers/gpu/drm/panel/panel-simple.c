@@ -1893,6 +1893,208 @@ static const struct panel_desc edt_etmv570g2dhu = {
 	.connector_type = DRM_MODE_CONNECTOR_DPI,
 };
 
+static const struct drm_display_mode eink_ed103tc2_mode[] ={
+	/* clock frequency = refresh rate * (htotal * vtotal) / 1000 */
+	// 0.5 Hz
+	{
+		.clock = 1568,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 1 Hz
+	{
+		.clock = 3137,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 5 Hz
+	{
+		.clock = 15687,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 15 Hz
+	{
+		.clock = 47063,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 20 Hz
+	{
+		.clock = 62751,
+		/* .clock = 200000, */
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 25 Hz
+	{
+		.clock = 78439,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 30 Hz
+	{
+		.clock = 94127,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2,
+	},
+	// 40 Hz
+	{
+		.clock = 125502,
+		.hdisplay = 1872,
+		.hsync_start = 1872 + 56,
+		.hsync_end = 1872 + 56 + 144,
+		.htotal = 1872 + 56 + 144 + 136,
+		.hskew = 64,
+		/* .hskew = 0, */ // <- does not work
+		/* .hskew = 10, */
+		/* .hskew = 20, */
+		/* .hskew = 30, */
+		/* .hskew = 40, */
+		/* .hskew = 50, */
+		/* .hskew = 60, */
+		/* .hskew = 70, */
+		.vdisplay = 1404,
+		.vsync_start = 1404 + 12,
+		.vsync_end = 1404 + 12 + 1,
+		.vtotal = 1404 + 12 + 1 + 4,
+		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC |
+			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2 |
+			DRM_MODE_TYPE_PREFERRED,
+	},
+
+/* 	/1* modes that actually take the .clock seriously *1/ */
+/* 	{ */
+/* 		/1* this will lead to dclk == 250 Mhz *1/ */
+/* 		/1* .clock = 266693, *1/ */
+/* 		/1* request dclk == 200 MHz *1/ */
+/* 		.clock = 200000, */
+/* 		.hdisplay = 1872, */
+/* 		/1* hsync_start, for linux timing order, should be display + fp */
+/* 		 * according to the data sheet, display = ldl == 234 [dclk] = 1872 pixels, and fp == lel == 7 [dclk] == 56 pixels */
+/* 		 *1/ */
+/* 		/1* data sheet days sync == lsl == 18 sclk = 18 * 8 pixels = 144 pixels *1/ */
+/* 		.hsync_start = 1872 + 56, */
+/* 		.hsync_end = 1872 + 56 + 144, */
+/* 		.htotal = 1872 + 56 + 144 + 136, */
+/* 		/1* .hsync_start = 1872 + 184, *1/ */
+/* 		/1* .hsync_end = 1872 + 184 + 88, *1/ */
+/* 		/1* .htotal = 1872 + 184 + 88 + 64, *1/ */
+/* 		/1* .hskew = 136, *1/ */
+/* 		.hskew = 64, */
+/* 		.vdisplay = 1404, */
+/* 		.vsync_start = 1404 + 12, */
+/* 		.vsync_end = 1404 + 12 + 1, */
+/* 		.vtotal = 1404 + 12 + 1 + 4, */
+/* 		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC | */
+/* 			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2, */
+/* 	}, */
+/* 	{ */
+/* 		.clock = 220000, */
+/* 		.hdisplay = 1872, */
+/* 		.hsync_start = 1872 + 56, */
+/* 		.hsync_end = 1872 + 56 + 144, */
+/* 		.htotal = 1872 + 56 + 144 + 136, */
+/* 		.hskew = 64, */
+/* 		.vdisplay = 1404, */
+/* 		.vsync_start = 1404 + 12, */
+/* 		.vsync_end = 1404 + 12 + 1, */
+/* 		.vtotal = 1404 + 12 + 1 + 4, */
+/* 		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC | */
+/* 			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2, */
+/* 	}, */
+/* 	{ */
+/* 		.clock = 266693, */
+/* 		.hdisplay = 1872, */
+/* 		.hsync_start = 1872 + 56, */
+/* 		.hsync_end = 1872 + 56 + 144, */
+/* 		.htotal = 1872 + 56 + 144 + 136, */
+/* 		.hskew = 64, */
+/* 		.vdisplay = 1404, */
+/* 		.vsync_start = 1404 + 12, */
+/* 		.vsync_end = 1404 + 12 + 1, */
+/* 		.vtotal = 1404 + 12 + 1 + 4, */
+/* 		.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC | */
+/* 			 DRM_MODE_FLAG_HSKEW | DRM_MODE_FLAG_CLKDIV2, */
+/* 	}, */
+};
+
+static const struct panel_desc eink_ed103tc2 = {
+	.modes = eink_ed103tc2_mode,
+	.num_modes = 8,
+	.bpc = 4,
+	.size = {
+		.width = 210,
+		.height = 157,
+	},
+	.bus_format = MEDIA_BUS_FMT_FIXED,
+	.bus_flags = DRM_BUS_FLAG_DE_LOW | DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
+};
+
 static const struct display_timing eink_vb3300_kca_timing = {
 	.pixelclock = { 40000000, 40000000, 40000000 },
 	.hactive = { 334, 334, 334 },
@@ -4254,6 +4456,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "edt,etmv570g2dhu",
 		.data = &edt_etmv570g2dhu,
+	}, {
+		.compatible = "eink,ed103tc2",
+		.data = &eink_ed103tc2,
 	}, {
 		.compatible = "eink,vb3300-kca",
 		.data = &eink_vb3300_kca,
