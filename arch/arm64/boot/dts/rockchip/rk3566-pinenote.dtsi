@@ -5,6 +5,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/usb/pd.h>
 
 #include "rk3566.dtsi"
 
@@ -38,6 +39,51 @@
 		sound-name-prefix = "Speaker Amp";
 	};
 
+	battery_cell: battery-cell {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <4000000>;
+		charge-term-current-microamp = <300000>;
+		constant-charge-current-max-microamp = <2000000>;
+		constant-charge-voltage-max-microvolt = <4200000>;
+		factory-internal-resistance-micro-ohms = <96000>;
+		voltage-max-design-microvolt = <4200000>;
+		voltage-min-design-microvolt = <3500000>;
+
+		ocv-capacity-celsius = <20>;
+		ocv-capacity-table-0 = <4168000 100>,
+				       <4109000 95>, <4066000 90>, <4023000 85>, <3985000 80>,
+				       <3954000 75>, <3924000 70>, <3897000 65>, <3866000 60>,
+				       <3826000 55>, <3804000 50>, <3789000 45>, <3777000 40>,
+				       <3770000 35>, <3763000 30>, <3750000 25>, <3732000 20>,
+				       <3710000 15>, <3680000 10>, <3670000  5>, <3500000  0>;
+	};
+
+	bt_sco_codec: bt-sco-codec {
+		compatible = "linux,bt-sco";
+		#sound-dai-cells = <1>;
+	};
+
+//	bt-sound {
+//		compatible = "simple-audio-card";
+//		#address-cells = <1>;
+//		#size-cells = <0>;
+//		simple-audio-card,name = "PineNote Bluetooth";
+//
+//		simple-audio-card,dai-link@0 {
+//			format = "i2s";
+//			frame-master = <&bt_link0_cpu>;
+//			bitclock-master = <&bt_link0_cpu>;
+//
+//			bt_link0_cpu: cpu {
+//				sound-dai = <&i2s2_2ch>;
+//			};
+//
+//			bt_link0_codec: codec {
+//				sound-dai = <&bt_sco_codec 0>;
+//			};
+//		};
+//	};
+
 	dmic_codec: dmic-codec {
 		compatible = "dmic-codec";
 		num-channels = <6>;
@@ -69,6 +115,18 @@
 			color = <LED_COLOR_ID_WHITE>;
 			function = LED_FUNCTION_CHARGING;
 			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "rk817-battery-charging";
+			retain-state-suspended;
+		};
+	};
+
+	panel {
+		compatible = "eink,ed103tc2";
+
+		port {
+			panel_in_ebc: endpoint {
+				remote-endpoint = <&ebc_out_panel>;
+			};
 		};
 	};
 
@@ -225,6 +283,27 @@
 	};
 };
 
+&cru {
+		// assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>, <&pmucru PLL_PPLL>, <&cru ACLK_RGA_PRE>, <&cru HCLK_RGA_PRE>;
+		assigned-clocks = <&pmucru CLK_RTC_32K>,
+  			<&cru ACLK_TOP_HIGH>, <&cru ACLK_TOP_LOW>,
+			<&cru PLL_GPLL>, <&pmucru PLL_PPLL>,
+ 			<&cru ACLK_RGA_PRE>, <&cru CPLL_250M>,
+			<&cru HCLK_RGA_PRE>, <&cru HCLK_EBC>,
+		    <&cru HCLK_JENC>;
+		// assigned-clock-rates = <32768>, <1200000000>, <200000000>, <300000000>, <300000000>;
+		// assigned-clock-rates = <32768>, <1200000000>, <200000000>, <250000000>, <250000000>, <250000000>, <250000000>, <250000000>;
+		assigned-clock-rates = <32768>,
+				<500000000>, <400000000>,
+				 <1200000000>, <200000000>,
+				 <300000000>, <300000000>,
+				 <300000000>, <300000000>,
+				 <300000000>;
+		// stronger artifacting, I suspend instabilities due to too high clock frequencies
+		// assigned-clock-rates = <32768>, <1200000000>, <200000000>, <333400000>, <333400000>, <333400000>, <333400000>, <333400000>;
+		assigned-clock-parents = <&pmucru CLK_RTC32K_FRAC>;
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
 };
@@ -241,8 +320,31 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&ebc {
+	io-channels = <&ebc_pmic 0>;
+	panel-supply = <&v3p3>;
+	vcom-supply = <&vcom>;
+	vdrive-supply = <&vdrive>;
+	status = "okay";
+
+	port {
+		ebc_out_panel: endpoint {
+			remote-endpoint = <&panel_in_ebc>;
+		};
+	};
+};
+
+&eink {
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_npu>;
+	status = "okay";
+};
+
 &rk_rga{
-       status = "okay";
+       status = "disabled";
 };
 
 &i2c0 {
@@ -289,6 +391,22 @@
 		vcc7-supply = <&vcc_sys>;
 		vcc8-supply = <&vcc_sys>;
 		vcc9-supply = <&dcdc_boost>;
+
+		// used for  kernel 5.17
+		battery {
+			monitored-battery = <&battery_cell>;
+			rockchip,resistor-sense-micro-ohms = <10000>;
+			rockchip,sleep-enter-current-microamp = <150000>;
+			rockchip,sleep-filter-current-microamp = <100000>;
+		};
+
+		// newer kernels (at least >= 6.2)
+		rk817_charger: charger {
+		    monitored-battery = <&battery_cell>;
+		    rockchip,resistor-sense-micro-ohms = <10000>;
+		        rockchip,sleep-enter-current-microamp = <150000>;
+		    rockchip,sleep-filter-current-microamp = <100000>;
+		};
 
 		regulators {
 			vdd_logic: DCDC_REG1 {
@@ -483,17 +601,43 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		/* ti,boost-frequency-hz = <500000>; */
+		/* ti,boost-frequency-hz = <560000>; */
+		/* ti,boost-frequency-hz = <1000000>; */
+		ti,boost-frequency-hz = <1120000>;
+
+		/* ti,boost-ovp-microvolt = <16000000>; */
+		/* ti,boost-ovp-microvolt = <24000000>; */
+		ti,boost-ovp-microvolt = <32000000>;
+		/* ti,boost-ovp-microvolt = <40000000>; */
+
+		ti,boost-ocp-microamp = <600000>;
+		/* ti,boost-ocp-microamp = <800000>; */
+		/* ti,boost-ocp-microamp = <1000000>; */
+		/* ti,boost-ocp-microamp = <1200000>; */
 
 		led@0 {
 			reg = <0>;
 			label = "backlight_cool";
 			default-brightness = <0>;
+			max-brightness = <255>;
+			// anything between 5000 (5 mA) and 28250 in 750 muA steps
+			/* ti,current-microamp = <5750>; */
+			ti,current-microamp = <12500>;
+			/* ti,current-microamp = <19250>; */
+			/* ti,current-microamp = <27500>; */
 		};
 
 		led@1 {
 			reg = <1>;
 			label = "backlight_warm";
 			default-brightness = <0>;
+			max-brightness = <255>;
+			// anything between 5000 (5 mA) and 28250 in 750 muA steps
+			/* ti,current-microamp = <5750>; */
+			ti,current-microamp = <12500>;
+			/* ti,current-microamp = <19250>; */
+			/* ti,current-microamp = <27500>; */
 		};
 	};
 
@@ -504,6 +648,7 @@
 		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&tcpc_int_l>;
 		pinctrl-names = "default";
+		status = "okay";
 
 		connector {
 			compatible = "usb-c-connector";
@@ -529,6 +674,56 @@
 			};
 		};
 	};
+
+	/* TODO: write binding */
+	ebc_pmic: pmic@68 {
+		compatible = "ti,tps65185";
+		reg = <0x68>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
+		pinctrl-0 = <&ebc_pmic_pins>;
+		pinctrl-names = "default";
+		powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pwr_good-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		vcom_ctrl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_bat>;
+		vin3p3-supply = <&vcc_3v3>;
+		wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+		ti,up-sequence = <1>, <0>, <2>, <3>;
+		ti,up-delay-ms = <3>, <3>, <3>, <3>;
+		ti,down-sequence = <2>, <3>, <1>, <0>;
+		ti,down-delay-ms = <3>, <6>, <6>, <6>;
+
+		regulators {
+			v3p3: v3p3 {
+				regulator-name = "v3p3";
+				/* At least pinenote v1.1 and v1.2: Information provided by
+				 * smaeul (Samuel Holland): Allowing this regulator to turn off
+				 * can lead to interrupt storms
+				 * While writing a driver for the TPS65185, I ran into an
+				 * interrupt storm. The reason is that EBC_PMIC_INT is pulled
+				 * up to VCC_EINK1 through R2003. But this is the output of the
+				 * V3P3 switch. So that means the IRQ cannot be enabled while
+				 * V3P3 is turned off.
+				*/
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vcom: vcom {
+				regulator-name = "vcom";
+				/* voltage range is board-specific */
+			};
+
+			vdrive: vdrive {
+				regulator-name = "vdrive";
+				regulator-min-microvolt = <15000000>;
+				regulator-max-microvolt = <15000000>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -544,11 +739,41 @@
 		st,drdy-int-pin = <1>;
 		vdd-supply = <&vcc_3v3>;
 		vddio-supply = <&vcc_3v3>;
+		// if we use panel-reflection=1 from the ebc driver, then the
+		// accelerometer must be rotated
+ 		mount-matrix = "-1", "0", "0",
+ 					   "0", "1", "0",
+ 					   "0", "0", "1";
+	};
+
+	touchscreen@24 {
+		compatible = "cypress,tt21000";
+		hid-descr-addr = <0x1>;
+		reg = <0x24>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA6 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&ts_int_l>, <&ts_rst_l>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&vcc_3v3_pmu>;
+
+        touchscreen-max-pressure = <46>;
+		touchscreen-min-x = <10>;
+		touchscreen-min-y = <5>;
+		touchscreen-size-x = <1863>;
+		touchscreen-size-y = <1399>;
+		touchscreen-x-mm = <1864>;
+		touchscreen-y-mm = <1400>;
 	};
 };
 
 &i2s1_8ch {
 	pinctrl-0 = <&i2s1m0_lrcktx>, <&i2s1m0_sclktx>, <&i2s1m0_sdi0>, <&i2s1m0_sdo0>;
+	rockchip,trcm-sync-tx-only;
+	status = "okay";
+};
+
+&i2s2_2ch {
 	rockchip,trcm-sync-tx-only;
 	status = "okay";
 };
@@ -616,6 +841,21 @@
 		};
 	};
 
+	ebc-pmic {
+		ebc_pmic_pins: ebc-pmic-pins {
+			rockchip,pins = /* wakeup */
+					<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* int */
+					<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
+					/* pwr_good */
+					<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* pwrup */
+					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* vcom_ctrl */
+					<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	led {
 		led_pin: led-pin {
 			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -661,6 +901,16 @@
 	tcpc {
 		tcpc_int_l: tcpc-int-l {
 			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	touchscreen {
+		ts_int_l: ts-int-l {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_rst_l: ts-rst-l {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -733,14 +983,17 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
+	rx-threshold = <1>;
+	tx-threshold = <1>;
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		clocks = <&rk817 1>;
 		clock-names = "lpo";
-		device-wake-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-		host-wake-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+        host-wakeup-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+        device-wakeup-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+        shutdown-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+        max-speed = <3000000>;
 		pinctrl-0 = <&bt_enable_h>, <&bt_host_wake_l>, <&bt_wake_h>;
 		pinctrl-names = "default";
 		vbat-supply = <&vcc_wl>;
