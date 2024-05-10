@@ -210,6 +210,20 @@
 		vin-supply = <&vbus>;
 	};
 
+	vcc_sys_ebc: vcc_sys_ebc {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc_sys_ebc_h>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vcc_sys_ebc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
 	/* sourced from vcc_sys, sdio module operates internally at 3.3v */
 	vcc_wl: vcc_wl {
 		compatible = "regulator-fixed";
@@ -219,6 +233,16 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_sys>;
+	};
+
+	panel {
+		compatible = "eink,ed103tc2";
+
+		port {
+			panel_in_ebc: endpoint {
+				remote-endpoint = <&ebc_out_panel>;
+			};
+		};
 	};
 };
 
@@ -244,6 +268,24 @@
 
 &cpu3 {
 	cpu-supply = <&vdd_cpu>;
+};
+
+&ebc {
+        status = "okay";
+        io-channels = <&ebc_pmic 0>;
+        panel-supply = <&v3p3>;
+        vcom-supply = <&vcom>;
+        vdrive-supply = <&vdrive>;
+
+        port {
+			ebc_out_panel: endpoint {
+				remote-endpoint = <&panel_in_ebc>;
+			};
+        };
+};
+
+&eink {
+        status = "okay";
 };
 
 &cpu_thermal {
@@ -533,6 +575,64 @@
 	};
 };
 
+&i2c1{
+	status = "okay";
+	ebc_pmic: pmic@68 {
+			status = "okay";
+			compatible = "ti,tps65185";
+			// check
+			reg = <0x68>;
+			// changed 3->4
+			interrupt-parent = <&gpio4>;
+			// changed Q64-A (EBC_PMIC_INT)
+			//interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
+			#io-channel-cells = <1>;
+			pinctrl-0 = <&ebc_pmic_pins>;
+			pinctrl-names = "default";
+			// [EBC_PMIC_ON] changed
+			/* powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>; */
+			powerup-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+			// changed q64-A
+			/* pwr_good-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>; */
+			pwr_good-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+			// ok q64-A
+			vcom_ctrl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+			// changed
+			vin-supply = <&vcc_sys_ebc>;
+			vin3p3-supply = <&vcc_sys_ebc>;
+			// changed q64-a
+			// wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+			wakeup-gpios = <&gpio4 RK_PC3 GPIO_ACTIVE_HIGH>;
+			ti,up-sequence = <1>, <0>, <2>, <3>;
+			ti,up-delay-ms = <3>, <3>, <3>, <3>;
+			ti,down-sequence = <2>, <3>, <1>, <0>;
+			ti,down-delay-ms = <3>, <6>, <6>, <6>;
+
+			regulators {
+					v3p3: v3p3 {
+							regulator-name = "v3p3";
+							regulator-always-on;
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+					};
+
+					vcom: vcom {
+							regulator-name = "vcom";
+							/* voltage range is board-specific */
+							regulator-min-microvolt = <1170000>;
+                            regulator-max-microvolt = <1170000>;
+					};
+
+					vdrive: vdrive {
+							regulator-name = "vdrive";
+							regulator-min-microvolt = <15000000>;
+							regulator-max-microvolt = <15000000>;
+					};
+			};
+	};
+};
+
 /* i2c3 is exposed on con40
  * pin 3 - i2c3_sda_m0, pullup to vcc_3v3
  * pin 5 - i2c3_scl_m0, pullup to vcc_3v3
@@ -632,6 +732,31 @@
 	vcc_sd {
 		vcc_sd_h: vcc-sd-h {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	vcc_sys_ebc {
+		vcc_sys_ebc_h: vcc-sys-ebc-h {
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	ebc-pmic {
+		ebc_pmic_pins: ebc-pmic-pins {
+			rockchip,pins = /* wakeup  EBC_PMIC_WAKEUP*/
+							/* <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>, */
+							<4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+							/* int EBC_PMIC_INT */
+							/* <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>, */
+							<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
+							/* pwr_good EBC_PMIC_PG*/
+							/* <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>, */
+							<4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
+							/* pwrup  EBC_PMIC_ON*/
+							/* <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>, */
+							<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,
+							/* vcom_ctrl  EBC_VCOM */
+							<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
