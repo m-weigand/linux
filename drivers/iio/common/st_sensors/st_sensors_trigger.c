@@ -87,6 +87,16 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 	    st_sensors_new_samples_available(indio_dev, sdata)) {
 		iio_trigger_poll_nested(p);
 	} else {
+		pr_info(
+			"st_sensors_irq_thread: %i returning IRQ_NONE (%i/%i/%i/%u) %s",
+			irq,
+		   	sdata->hw_irq_trigger,
+			st_sensors_new_samples_available(indio_dev, sdata),
+			sdata->num_data_channels,
+			sdata->odr,
+			trig->name
+		);
+		/* return IRQ_HANDLED; */
 		dev_dbg(indio_dev->dev.parent, "spurious IRQ\n");
 		return IRQ_NONE;
 	}
