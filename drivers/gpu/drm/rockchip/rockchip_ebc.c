@@ -1177,7 +1177,7 @@ static void rockchip_ebc_refresh(struct rockchip_ebc *ebc,
 		temperature /= 1000;
 
 		if (temp_override > 0){
-			printk(KERN_INFO "rockchip-ebc: override temperature from %i to %i\n", temp_override, temperature);
+			printk(KERN_INFO "rockchip-ebc: override temperature from %i to %i\n", temperature, temp_override);
             temperature = temp_override;
         }
 
