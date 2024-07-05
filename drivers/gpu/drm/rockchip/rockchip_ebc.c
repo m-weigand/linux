@@ -1897,7 +1897,7 @@ static bool rockchip_ebc_blit_fb_r4(const struct rockchip_ebc_ctx *ctx,
 	width = x2_bytes - x1_bytes;
 
 	src = vaddr + src_clip->y1 * src_pitch + x1_bytes;
-	dst = ctx->final + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
+	dst = ctx->final_atomic_update + dst_clip->y1 * dst_pitch + dst_clip->x1 / 2;
 
 	for (y = src_clip->y1; y < src_clip->y2; y++) {
 		memcpy(dst, src, width);
