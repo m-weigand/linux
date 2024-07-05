@@ -241,6 +241,10 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&rk_rga{
+       status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
