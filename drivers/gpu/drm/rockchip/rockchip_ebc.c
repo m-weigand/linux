@@ -732,7 +732,7 @@ static bool rockchip_ebc_schedule_area(struct list_head *areas,
 	// scheduled to start together, but other frames later in the queue prevent
 	// that, then suddenly we need to wait for the other area.
 	u32 do_not_start_before_frame = 0;
-	/* printk(KERN_INFO "scheduling area: %i-%i %i-%i (current frame: %i)\n", area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, current_frame); */
+	pr_debug(KERN_INFO "scheduling area: %i-%i %i-%i (current frame: %i)\n", area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, current_frame);
 
 	list_for_each_entry(other, areas, list) {
 		struct drm_rect intersection;
@@ -1043,7 +1043,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 
 			/* Copy ctx->final to ctx->next on the first frame. */
 			if (frame_delta == 0) {
-				/* printk(KERN_INFO "[rockchip-ebc] partial refresh starting area on frame %i (%i/%i %i/%i) (end: %i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, area->frame_begin + last_phase); */
+				pr_debug(KERN_INFO "[rockchip-ebc] partial refresh starting area on frame %i (%i/%i %i/%i) (end: %i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2, area->frame_begin + last_phase);
 				local_area_count += (u64) (
 					area->clip.x2 - area->clip.x1) *
 					(area->clip.y2 - area->clip.y1);
@@ -1097,7 +1097,9 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				drm_dbg(drm, "area %p (" DRM_RECT_FMT ") finished on %u\n",
 					area, DRM_RECT_ARG(&area->clip), frame);
 
-				/* printk(KERN_INFO "[rockchip-ebc]     partial refresh stopping area on frame %i (%i/%i %i/%i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2); */
+				pr_debug(
+					KERN_INFO "[rockchip-ebc]     partial refresh stopping area on frame %i (%i/%i %i/%i)\n", frame, area->clip.x1, area->clip.x2, area->clip.y1, area->clip.y2
+				);
 				list_del(&area->list);
 				kfree(area);
 			}
@@ -1171,7 +1173,7 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				min_frame_delay = duration;
 		//pr_info("ebc: frame %i took %llu ms", i, duration);
 	}
-	pr_info("ebc: min/max frame durations: %u/%u [ms]", min_frame_delay, max_frame_delay);
+	pr_debug("ebc: min/max frame durations: %u/%u [ms]", min_frame_delay, max_frame_delay);
 
 }
 
@@ -1405,7 +1407,6 @@ static int rockchip_ebc_refresh_thread(void *data)
 		 * known contents (white) regardless of its current contents.
 		 */
 		if (!ebc->reset_complete) {
-			pr_info("EBC STartup reset");
 			ebc->reset_complete = true;
 			rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_RESET);
 		}
@@ -1870,6 +1871,7 @@ static bool rockchip_ebc_blit_fb_r4(const struct rockchip_ebc_ctx *ctx,
 	unsigned int y;
 	const void *src;
 	void *dst;
+	pr_debug("%s starting", __func__);
 
 	unsigned width = src_clip->x2 - src_clip->x1;
 	unsigned int x1_bytes = src_clip->x1 / 2;
@@ -1909,6 +1911,7 @@ static bool rockchip_ebc_blit_fb_xrgb8888(const struct rockchip_ebc_ctx *ctx,
 	unsigned int delta_y;
 	unsigned int start_y;
 	unsigned int end_y2;
+	pr_debug("%s starting", __func__);
 
 	// original pattern
 	/* int pattern[4][4] = { */
@@ -2091,7 +2094,7 @@ static void rockchip_ebc_plane_atomic_update(struct drm_plane *plane,
 	vaddr = ebc_plane_state->base.data[0].vaddr;
 	/* pr_info("ebc atomic update: vaddr: 0x%px", vaddr); */
 
-	/* printk(KERN_INFO "[rockchip-ebc] new fb clips\n"); */
+	pr_debug(KERN_INFO "[rockchip-ebc] new fb clips\n");
 	list_for_each_entry_safe(area, next_area, &ebc_plane_state->areas, list) {
 		struct drm_rect *dst_clip = &area->clip;
 		struct drm_rect src_clip = area->clip;
