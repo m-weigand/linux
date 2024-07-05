@@ -1144,11 +1144,6 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 				if(ctx->switch_required){
 					ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
 					ctx->switch_required = false;
-
-					time_buffer_sync = ktime_get();
-					duration = ktime_ms_delta(time_buffer_sync, ctx->last_buffer_sync);
-					ctx->last_buffer_sync = time_buffer_sync;
-					pr_debug("last buffer sync: %llu ms", duration);
 				}
 				ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
 				spin_unlock(&ctx->queue_lock);
