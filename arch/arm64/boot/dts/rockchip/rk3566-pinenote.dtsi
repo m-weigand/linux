@@ -424,6 +424,7 @@
 
 			vdd_gpu_npu: DCDC_REG2 {
 				regulator-name = "vdd_gpu_npu";
+				regulator-always-on;
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
