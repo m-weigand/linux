@@ -1132,15 +1132,33 @@ static void rockchip_ebc_partial_refresh(struct rockchip_ebc *ebc,
 		// queue. Well, we probably only wait for the spinlock in case the
 		// atomic_update function is currently blitting
 
-		if (spin_trylock(&ctx->queue_lock)){
-			list_splice_tail_init(&ctx->queue, &areas);
-			// switch buffers
-			if(ctx->switch_required){
-				ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
-				ctx->switch_required = false;
+		if (ctx->switch_required){
+			pr_debug("    we could switch now");
+		}
+		// we have some time until the frame finishes, try a few times to
+		// acquire the lock
+		for (int i=0; i <= 5; i++){
+			if (spin_trylock(&ctx->queue_lock)){
+				list_splice_tail_init(&ctx->queue, &areas);
+				// switch buffers
+				if(ctx->switch_required){
+					ctx->ebc_buffer_index = !ctx->ebc_buffer_index;
+					ctx->switch_required = false;
+
+					time_buffer_sync = ktime_get();
+					duration = ktime_ms_delta(time_buffer_sync, ctx->last_buffer_sync);
+					ctx->last_buffer_sync = time_buffer_sync;
+					pr_debug("last buffer sync: %llu ms", duration);
+				}
+				ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
+				spin_unlock(&ctx->queue_lock);
+				break;
 			}
-			ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
-			spin_unlock(&ctx->queue_lock);
+			else {
+				pr_debug("    but did not get the lock");
+			}
+			// sleep 1 ms
+			usleep_range(1 * 1000 - 100, 1 * 1000);
 		}
 
 		if (!wait_for_completion_timeout(&ebc->display_end,
