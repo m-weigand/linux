@@ -2,6 +2,15 @@
 
 ** If you are looking for a PineNote kernel, use the branch_pinenote_6-6-22 branch (https://github.com/m-weigand/linux/tree/branch_pinenote_6-6-22)**
 
+## Branch structure
+
+I try to structure my branches into merged, ready-to-test kernels, and branches
+that contain feature-specific patches based upon an upstream or stable tree.
+
+Branches for use on the pinenote usual start with **branch_pinenote**
+
+Branches with feature patches start with **branch_rebase**
+
 ## Branches
 
 * **branch_pinenote_6-6-22** A v6.6.22 kernel with various patches for the
