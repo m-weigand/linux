@@ -1,0 +1,86 @@
+name: Build a kernel for the PineNote (6.9 branch)
+
+permissions:
+  contents: write
+
+on:
+  # push:
+    # branches:
+    #   - 'mw/rk35/pinenote-next-t1'
+  workflow_dispatch:
+
+jobs:
+  compile_kernel:
+    runs-on: ubuntu-latest
+    name: Compile the pinenote kernel
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install requirements
+        run: |
+          apt -y install git vim debhelper
+          apt -y install build-essential linux-source bc kmod cpio flex libncurses5-dev libelf-dev libssl-dev dwarves bison
+          apt -y install gcc-aarch64-linux-gnu
+          apt -y install rsync rename
+
+      - name: Clone kernel branch
+        run: |
+          git clone --depth 1 --branch branch_pinenote_6-9_v1 https://github.com/m-weigand/linux
+
+      - name: Compile kernel branch
+        run: |
+          cd linux
+          test -d pack && rm -r pack
+          mkdir pack
+          make clean
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- pinenote_defconfig
+          make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" KBUILD_IMAGE=arch/arm64/boot/Image deb-pkg
+          cd ..
+          rename 's/.deb/_no_compression.deb/' linux-image*
+          mv *.deb linux/pack/
+          mv linux-upstream* linux/pack/
+          cd linux
+          # # make -j 2 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION=-pinenote-`date +%Y%m%d%H%M` KDEB_PKGVERSION="" bindeb-pkg
+          # # mv ../*.deb pack/
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_PATH=${PWD}/pack dtbs_install
+
+  # cp ./arch/arm64/boot/dts/rockchip/rk3566-pinenote-v1.2.dtb pack/
+  # cp ./arch/arm64/boot/Image pack/
+  # # rename 's/.deb/_with_compression.deb/' linux-image*
+  # cd pack
+  # tar cvzf modules.tar.gz lib
+  # rm -r lib
+  # cd ../..
+  #
+  # # extract the results from the Docker container
+  # cp -r linux/pack /github/home/pack_v6.9
+  #
+      # - name: Compile kernel branch
+      #   run: |
+
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pinenote_kernel_module_dtb
+          path: linux/pack
+
+  # do_release:
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     - compile_kernel
+  #   steps:
+  #     - name: Clone workflow repository
+  #       uses: actions/checkout@v3
+  #     - name: Download image artifacts
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         path: artifacts/
+  #     - name: Make release
+  #       uses: softprops/action-gh-release@v0.1.15
+  #       with:
+  #         draft: true
+  #         files: |
+  #           # artifacts/pinenote_kernel_module_dtb_v6.3/*.deb
+  #           # artifacts/pinenote_kernel_module_dtb_v6.3/linux-upstream*
+  #           artifacts/pinenote_kernel_module_dtb_v6.6/*.deb
+  #           artifacts/pinenote_kernel_module_dtb_v6.6/linux-upstream*
