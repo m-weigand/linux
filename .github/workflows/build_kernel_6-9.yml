@@ -38,7 +38,7 @@ jobs:
           rename 's/.deb/_no_compression.deb/' linux-image*
           mv *.deb linux/pack/
           mv linux-upstream* linux/pack/
-          tree -l 4 linux/pack
+          tree -L 4 linux/pack
 
       - name: Compile kernel branch step 2
         run: |
@@ -48,8 +48,9 @@ jobs:
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${PWD}/pack modules_install
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_PATH=${PWD}/pack dtbs_install
           cd ..
-
-          tree -l 4 linux/pack
+          tar cvzf linux/pack/modules.tar.gz linux/pack/lib
+          rm -r linux/pack/lib
+          tree -L 4 linux/pack
 
   # cp ./arch/arm64/boot/dts/rockchip/rk3566-pinenote-v1.2.dtb pack/
   # cp ./arch/arm64/boot/Image pack/
@@ -66,10 +67,10 @@ jobs:
       #   run: |
 
 
-      # - uses: actions/upload-artifact@v3
-      #   with:
-      #     name: pinenote_kernel_module_dtb
-      #     path: linux/pack
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pinenote_kernel_module_dtb
+          path: linux/pack
 
   # do_release:
   #   runs-on: ubuntu-latest
