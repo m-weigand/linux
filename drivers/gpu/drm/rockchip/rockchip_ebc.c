@@ -2379,6 +2379,8 @@ static int rockchip_ebc_drm_init(struct rockchip_ebc *ebc)
 		return ret;
 
 	ebc->encoder.possible_crtcs = drm_crtc_mask(&ebc->crtc);
+	// todo: consider using drmm_simple_encoder_alloc()
+	// see: https://www.kernel.org/doc/html/latest/gpu/drm-kms-helpers.html?highlight=drm_simple_encoder_init#c.drm_simple_encoder_init
 	ret = drm_simple_encoder_init(drm, &ebc->encoder, DRM_MODE_ENCODER_NONE);
 	if (ret)
 		return ret;
