@@ -107,45 +107,45 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 	on_list = on_off_regs_list[state].on_reg_list;
 	off_list = on_off_regs_list[state].off_reg_list;
 
-	if (of_find_property(node, on_prop_name, NULL)) {
-		for (i = 0, j = 0;
-		     (dn = of_parse_phandle(node, on_prop_name, i));
-		     i++) {
-			reg = of_find_regulator_by_node(dn);
-			if (reg == NULL) {
-				pr_warn("failed to find regulator %s for %s\n",
-					dn->name, on_prop_name);
-			} else {
-				pr_debug("%s on regulator=%s\n", __func__,
-					 reg->desc->name);
-				on_list[j++] = reg;
-			}
-			of_node_put(dn);
+	// if (of_find_property(node, on_prop_name, NULL)) {
+	// 	for (i = 0, j = 0;
+	// 	     (dn = of_parse_phandle(node, on_prop_name, i));
+	// 	     i++) {
+	// 		reg = of_find_regulator_by_node(dn);
+	// 		if (reg == NULL) {
+	// 			pr_warn("failed to find regulator %s for %s\n",
+	// 				dn->name, on_prop_name);
+	// 		} else {
+	// 			pr_debug("%s on regulator=%s\n", __func__,
+	// 				 reg->desc->name);
+	// 			on_list[j++] = reg;
+	// 		}
+	// 		of_node_put(dn);
 
-			if (j >= MAX_ON_OFF_REG_NUM)
-				return 0;
-		}
-	}
+	// 		if (j >= MAX_ON_OFF_REG_NUM)
+	// 			return 0;
+	// 	}
+	// }
 
-	if (of_find_property(node, off_prop_name, NULL)) {
-		for (i = 0, j = 0;
-		     (dn = of_parse_phandle(node, off_prop_name, i));
-		     i++) {
-			reg = of_find_regulator_by_node(dn);
-			if (reg == NULL) {
-				pr_warn("failed to find regulator %s for %s\n",
-					dn->name, off_prop_name);
-			} else {
-				pr_debug("%s off regulator=%s\n", __func__,
-					 reg->desc->name);
-				off_list[j++] = reg;
-			}
-			of_node_put(dn);
+	// if (of_find_property(node, off_prop_name, NULL)) {
+	// 	for (i = 0, j = 0;
+	// 	     (dn = of_parse_phandle(node, off_prop_name, i));
+	// 	     i++) {
+	// 		reg = of_find_regulator_by_node(dn);
+	// 		if (reg == NULL) {
+	// 			pr_warn("failed to find regulator %s for %s\n",
+	// 				dn->name, off_prop_name);
+	// 		} else {
+	// 			pr_debug("%s off regulator=%s\n", __func__,
+	// 				 reg->desc->name);
+	// 			off_list[j++] = reg;
+	// 		}
+	// 		of_node_put(dn);
 
-			if (j >= MAX_ON_OFF_REG_NUM)
-				return 0;
-		}
-	}
+	// 		if (j >= MAX_ON_OFF_REG_NUM)
+	// 			return 0;
+	// 	}
+	// }
 
 	return 0;
 }
