@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #ifdef CONFIG_64BIT
 #define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
