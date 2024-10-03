@@ -35,7 +35,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/rockchip_ebc_drm.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_framebuffer.h>
 
 #define EBC_DSP_START			0x0000
@@ -416,7 +416,6 @@ static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = 
 };
 
 static const struct drm_driver rockchip_ebc_drm_driver = {
-	.lastclose		= drm_fb_helper_lastclose,
 	DRM_GEM_SHMEM_DRIVER_OPS,
 	.major			= 0,
 	.minor			= 3,
@@ -2401,7 +2400,7 @@ static int rockchip_ebc_drm_init(struct rockchip_ebc *ebc)
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(drm, 0);
+	drm_fbdev_ttm_setup(drm, 0);
 
 	// check if there is a default off-screen
 	if (!request_firmware(&default_offscreen, "rockchip/rockchip_ebc_default_screen.bin", drm->dev))
@@ -2658,7 +2657,7 @@ err_disable_pm:
 	return ret;
 }
 
-static int rockchip_ebc_remove(struct platform_device *pdev)
+static void rockchip_ebc_remove(struct platform_device *pdev)
 {
 	struct rockchip_ebc *ebc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -2671,8 +2670,6 @@ static int rockchip_ebc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 	if (!pm_runtime_status_suspended(dev))
 		rockchip_ebc_runtime_suspend(dev);
-
-	return 0;
 }
 
 static void rockchip_ebc_shutdown(struct platform_device *pdev)

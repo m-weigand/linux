@@ -121,6 +121,7 @@ config DRM_ROCKCHIP_EBC
 	select DRM_EPD_HELPER
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
+	select DRM_TTM_HELPER
 	help
 	  This selects DRM/KMS support for the Rockchip E-Book Controller (EBC).
 	  Choose this option if you have a Rockchip SoC and an electrophoretic
