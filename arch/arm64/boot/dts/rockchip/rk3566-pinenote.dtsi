@@ -153,6 +153,7 @@
 			reset-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
 			spi-3wire;
 			spi-max-frequency = <10000>;
+			spi-cs-inactive-delay-ns = <7000000>;
 		};
 	};
 
