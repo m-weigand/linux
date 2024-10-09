@@ -6,6 +6,7 @@
  * Copyright (C) 2017 Linus Walleij
  */
 #include <linux/gpio/consumer.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -113,7 +114,7 @@ static inline int getmiso(const struct spi_device *spi)
  * reaching even one Mbit/sec (except when we can inline bitops), so for now
  * we'll just assume we never need additional per-bit slowdowns.
  */
-#define spidelay(nsecs)	do {} while (0)
+#define spidelay(nsecs)	ndelay(nsecs)
 
 #include "spi-bitbang-txrx.h"
 
