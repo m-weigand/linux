@@ -148,6 +148,8 @@
 
 #define EBC_FIRMWARE		"rockchip/ebc.wbf"
 MODULE_FIRMWARE(EBC_FIRMWARE);
+#define EBC_OFFCONTENT "rockchip/rockchip_ebc_default_screen.bin"
+MODULE_FIRMWARE(EBC_OFFCONTENT);
 
 struct rockchip_ebc {
 	struct clk			*dclk;
