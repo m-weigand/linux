@@ -80,6 +80,7 @@
 #define HID_OUTPUT_RESPONSE_CMD_OFFSET		4
 #define HID_OUTPUT_RESPONSE_CMD_MASK		GENMASK(6, 0)
 
+#define HID_SYSINFO_CYDATA_OFFSET		5
 #define HID_SYSINFO_SENSING_OFFSET		33
 #define HID_SYSINFO_BTN_OFFSET			48
 #define HID_SYSINFO_BTN_MASK			GENMASK(7, 0)
@@ -180,6 +181,7 @@ struct cyttsp5_sysinfo {
 	struct cyttsp5_tch_abs_params tch_hdr;
 	struct cyttsp5_tch_abs_params tch_abs[CY_TCH_NUM_ABS];
 	u32 key_code[HID_SYSINFO_MAX_BTN];
+	u8 cydata[HID_SYSINFO_SENSING_OFFSET - HID_SYSINFO_CYDATA_OFFSET];
 };
 
 struct cyttsp5_hid_desc {
@@ -582,6 +584,7 @@ static int cyttsp5_get_sysinfo_regs(struct cyttsp5 *ts)
 	u32 tmp;
 
 	cyttsp5_si_get_btn_data(ts);
+	memcpy(ts->sysinfo.cydata, ts->response_buf + HID_SYSINFO_CYDATA_OFFSET, sizeof(ts->sysinfo.cydata));
 
 	scd->max_tch = scd_dev->max_num_of_tch_per_refresh_cycle;
 
@@ -882,6 +885,15 @@ static int cyttsp5_hid_output_read_conf_block(struct cyttsp5 *ts,
 	return 0;
 }
 
+static ssize_t cyttsp5_sysfs_dump_cydata(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5 *ts = dev_get_drvdata(dev);
+	ssize_t len = sizeof(ts->sysinfo.cydata);
+	memcpy(buf, ts->sysinfo.cydata, len);
+	return len;
+}
+
 static ssize_t cyttsp5_sysfs_dump_config(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -930,6 +942,7 @@ resume_scanning:
 }
 
 static DEVICE_ATTR(dump_config, S_IRUGO, cyttsp5_sysfs_dump_config, NULL);
+static DEVICE_ATTR(dump_cydata, S_IRUGO, cyttsp5_sysfs_dump_cydata, NULL);
 
 static irqreturn_t cyttsp5_handle_irq(int irq, void *handle)
 {
@@ -1053,6 +1066,7 @@ static int cyttsp5_startup(struct cyttsp5 *ts)
 
 static struct attribute *cyttsp5_attrs[] = {
 	&dev_attr_dump_config.attr,
+	&dev_attr_dump_cydata.attr,
 	NULL
 };
 
