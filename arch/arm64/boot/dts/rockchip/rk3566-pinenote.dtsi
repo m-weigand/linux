@@ -963,16 +963,19 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
+	rx-threshold = <1>;
+	tx-threshold = <1>;
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		clocks = <&rk817 1>;
 		clock-names = "lpo";
-		device-wakeup-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+        host-wakeup-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+        device-wakeup-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+        shutdown-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+        max-speed = <3000000>;
 		pinctrl-0 = <&bt_enable_h>, <&bt_host_wake_l>, <&bt_wake_h>;
 		pinctrl-names = "default";
-		shutdown-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		vbat-supply = <&vcc_wl>;
 		vddio-supply = <&vcca_1v8_pmu>;
 	};
