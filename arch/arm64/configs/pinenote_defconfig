@@ -782,9 +782,32 @@ CONFIG_SND_USB_TONEPORT=m
 CONFIG_SND_USB_VARIAX=m
 
 ##
+## file: block/Kconfig
+##
+CONFIG_BLOCK=y
+
+##
+## file: fs/cachefiles/Kconfig
+##
+CONFIG_CACHEFILES=m
+
+##
+## file: fs/netfs/Kconfig
+##
+CONFIG_FSCACHE=y
+CONFIG_FSCACHE_STATS=y
+
+##
 ## file: fs/smb/client/Kconfig
 ##
 CONFIG_CIFS=m
 CONFIG_CIFS_UPCALL=y
 CONFIG_CIFS_XATTR=y
 CONFIG_CIFS_FSCACHE=y
+
+##
+## file: fs/proc/Kconfig
+##
+CONFIG_PROC_FS=y
+CONFIG_PROC_SYSCTL=y
+CONFIG_PROC_PAGE_MONITOR=y
