@@ -324,8 +324,12 @@ static int ioctl_set_off_screen(struct drm_device *dev, void *data,
 	struct drm_rockchip_ebc_off_screen *args = data;
 	struct rockchip_ebc *ebc = dev_get_drvdata(dev->dev);
 	int copy_result;
+	pr_info("rockchip-ebc: ioctl_set_off_screen");
 
 	copy_result = copy_from_user(&ebc->off_screen, args->ptr_screen_content, 1313144);
+	if (copy_result != 0){
+		pr_err("Could not copy offscreen content from user-supplied data pointer (bytes not copied: %lu)", copy_result);
+	}
 
 	return 0;
 }
