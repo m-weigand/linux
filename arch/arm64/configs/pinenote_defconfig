@@ -740,6 +740,11 @@ CONFIG_USB_SERIAL_CP210X=m
 
 
 ##
+## file: block/Kconfig
+##
+CONFIG_BLOCK=y
+
+##
 ## file: drivers/usb/gadget/Kconfig
 ##
 CONFIG_USB_GADGET=y
@@ -764,31 +769,6 @@ CONFIG_USB_CONFIGFS_F_UVC=y
 ## file: drivers/usb/roles/Kconfig
 ##
 CONFIG_USB_ROLE_SWITCH=m
-
-##
-## file: sound/usb/Kconfig
-##
-CONFIG_SND_USB=y
-CONFIG_SND_USB_AUDIO=m
-CONFIG_SND_USB_AUDIO_MIDI_V2=y
-CONFIG_SND_USB_UA101=m
-CONFIG_SND_USB_CAIAQ=m
-CONFIG_SND_USB_CAIAQ_INPUT=y
-CONFIG_SND_USB_6FIRE=m
-CONFIG_SND_USB_HIFACE=m
-
-##
-## file: sound/usb/line6/Kconfig
-##
-CONFIG_SND_USB_POD=m
-CONFIG_SND_USB_PODHD=m
-CONFIG_SND_USB_TONEPORT=m
-CONFIG_SND_USB_VARIAX=m
-
-##
-## file: block/Kconfig
-##
-CONFIG_BLOCK=y
 
 ##
 ## file: fs/Kconfig
@@ -823,6 +803,13 @@ CONFIG_NFS_FSCACHE=y
 # CONFIG_NFS_USE_LEGACY_DNS is not set
 
 ##
+## file: fs/proc/Kconfig
+##
+CONFIG_PROC_FS=y
+CONFIG_PROC_SYSCTL=y
+CONFIG_PROC_PAGE_MONITOR=y
+
+##
 ## file: fs/smb/client/Kconfig
 ##
 CONFIG_CIFS=m
@@ -831,13 +818,26 @@ CONFIG_CIFS_XATTR=y
 CONFIG_CIFS_FSCACHE=y
 
 ##
-## file: fs/proc/Kconfig
-##
-CONFIG_PROC_FS=y
-CONFIG_PROC_SYSCTL=y
-CONFIG_PROC_PAGE_MONITOR=y
-
-##
 ## file: init/Kconfig
 ##
 CONFIG_MULTIUSER=y
+
+##
+## file: sound/usb/Kconfig
+##
+CONFIG_SND_USB=y
+CONFIG_SND_USB_AUDIO=m
+CONFIG_SND_USB_AUDIO_MIDI_V2=y
+CONFIG_SND_USB_UA101=m
+CONFIG_SND_USB_CAIAQ=m
+CONFIG_SND_USB_CAIAQ_INPUT=y
+CONFIG_SND_USB_6FIRE=m
+CONFIG_SND_USB_HIFACE=m
+
+##
+## file: sound/usb/line6/Kconfig
+##
+CONFIG_SND_USB_POD=m
+CONFIG_SND_USB_PODHD=m
+CONFIG_SND_USB_TONEPORT=m
+CONFIG_SND_USB_VARIAX=m
