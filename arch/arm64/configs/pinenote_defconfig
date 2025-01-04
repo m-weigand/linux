@@ -176,31 +176,6 @@ CONFIG_SCSI_SCAN_ASYNC=y
 CONFIG_MD=y
 CONFIG_BLK_DEV_DM=m
 CONFIG_DM_THIN_PROVISIONING=m
-CONFIG_NETDEVICES=y
-CONFIG_DUMMY=m
-CONFIG_WIREGUARD=m
-CONFIG_MACVLAN=m
-CONFIG_IPVLAN=m
-CONFIG_VXLAN=m
-CONFIG_TUN=m
-CONFIG_VETH=m
-# CONFIG_WLAN_VENDOR_ADMTEK is not set
-# CONFIG_WLAN_VENDOR_ATH is not set
-# CONFIG_WLAN_VENDOR_ATMEL is not set
-CONFIG_BRCMFMAC=m
-# CONFIG_WLAN_VENDOR_CISCO is not set
-# CONFIG_WLAN_VENDOR_INTEL is not set
-# CONFIG_WLAN_VENDOR_INTERSIL is not set
-# CONFIG_WLAN_VENDOR_MARVELL is not set
-# CONFIG_WLAN_VENDOR_MEDIATEK is not set
-# CONFIG_WLAN_VENDOR_MICROCHIP is not set
-# CONFIG_WLAN_VENDOR_RALINK is not set
-# CONFIG_WLAN_VENDOR_REALTEK is not set
-# CONFIG_WLAN_VENDOR_RSI is not set
-# CONFIG_WLAN_VENDOR_ST is not set
-# CONFIG_WLAN_VENDOR_TI is not set
-# CONFIG_WLAN_VENDOR_ZYDAS is not set
-# CONFIG_WLAN_VENDOR_QUANTENNA is not set
 # CONFIG_LEGACY_PTYS is not set
 # CONFIG_LDISC_AUTOLOAD is not set
 CONFIG_SERIAL_8250=y
@@ -548,10 +523,6 @@ CONFIG_ENABLE_DEFAULT_TRACERS=y
 CONFIG_ANDROID_BINDER_IPC=y
 CONFIG_ANDROID_BINDERFS=y
 CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder"
-CONFIG_ETHERNET=y
-CONFIG_STMMAC_ETH=y
-CONFIG_MOTORCOMM_PHY=y
-CONFIG_DWMAC_ROCKCHIP=y
 CONFIG_ATA=m
 CONFIG_PHY_ROCKCHIP_NANENG_COMBO_PHY=y
 CONFIG_PCI=y
@@ -761,6 +732,34 @@ CONFIG_INPUT_TOUCHSCREEN=y
 CONFIG_TOUCHSCREEN_CYTTSP5=m
 
 ##
+## file: drivers/net/Kconfig
+##
+CONFIG_NETDEVICES=y
+CONFIG_DUMMY=m
+CONFIG_WIREGUARD=m
+CONFIG_MACVLAN=m
+CONFIG_IPVLAN=m
+CONFIG_VXLAN=m
+CONFIG_TUN=m
+CONFIG_VETH=m
+
+##
+## file: drivers/net/ethernet/Kconfig
+##
+CONFIG_ETHERNET=y
+
+##
+## file: drivers/net/ethernet/stmicro/stmmac/Kconfig
+##
+CONFIG_STMMAC_ETH=y
+CONFIG_DWMAC_ROCKCHIP=y
+
+##
+## file: drivers/net/phy/Kconfig
+##
+CONFIG_MOTORCOMM_PHY=y
+
+##
 ## file: drivers/net/usb/Kconfig
 ##
 CONFIG_USB_NET_DRIVERS=m
@@ -771,6 +770,86 @@ CONFIG_USB_NET_CDC_EEM=m
 # CONFIG_USB_NET_NET1080 is not set
 # CONFIG_USB_NET_CDC_SUBSET is not set
 # CONFIG_USB_NET_ZAURUS is not set
+
+##
+## file: drivers/net/wireless/admtek/Kconfig
+##
+# CONFIG_WLAN_VENDOR_ADMTEK is not set
+
+##
+## file: drivers/net/wireless/ath/Kconfig
+##
+# CONFIG_WLAN_VENDOR_ATH is not set
+
+##
+## file: drivers/net/wireless/atmel/Kconfig
+##
+# CONFIG_WLAN_VENDOR_ATMEL is not set
+
+##
+## file: drivers/net/wireless/broadcom/brcm80211/brcmfmac/Kconfig
+##
+CONFIG_BRCMFMAC=m
+
+##
+## file: drivers/net/wireless/intel/Kconfig
+##
+# CONFIG_WLAN_VENDOR_INTEL is not set
+
+##
+## file: drivers/net/wireless/intersil/Kconfig
+##
+# CONFIG_WLAN_VENDOR_INTERSIL is not set
+
+##
+## file: drivers/net/wireless/marvell/Kconfig
+##
+# CONFIG_WLAN_VENDOR_MARVELL is not set
+
+##
+## file: drivers/net/wireless/mediatek/Kconfig
+##
+# CONFIG_WLAN_VENDOR_MEDIATEK is not set
+
+##
+## file: drivers/net/wireless/microchip/Kconfig
+##
+# CONFIG_WLAN_VENDOR_MICROCHIP is not set
+
+##
+## file: drivers/net/wireless/quantenna/Kconfig
+##
+# CONFIG_WLAN_VENDOR_QUANTENNA is not set
+
+##
+## file: drivers/net/wireless/ralink/Kconfig
+##
+# CONFIG_WLAN_VENDOR_RALINK is not set
+
+##
+## file: drivers/net/wireless/realtek/Kconfig
+##
+# CONFIG_WLAN_VENDOR_REALTEK is not set
+
+##
+## file: drivers/net/wireless/rsi/Kconfig
+##
+# CONFIG_WLAN_VENDOR_RSI is not set
+
+##
+## file: drivers/net/wireless/st/Kconfig
+##
+# CONFIG_WLAN_VENDOR_ST is not set
+
+##
+## file: drivers/net/wireless/ti/Kconfig
+##
+# CONFIG_WLAN_VENDOR_TI is not set
+
+##
+## file: drivers/net/wireless/zydas/Kconfig
+##
+# CONFIG_WLAN_VENDOR_ZYDAS is not set
 
 ##
 ## file: drivers/usb/Kconfig
