@@ -648,7 +648,7 @@ CONFIG_CPUFREQ_DT_PLATDEV=y
 ##
 ## file: drivers/cpufreq/Kconfig.arm
 ##
-CONFIG_ARM_SCMI_CPUFREQ=y
+CONFIG_ARM_SCMI_CPUFREQ=m
 
 ##
 ## file: drivers/cpuidle/Kconfig
@@ -673,11 +673,13 @@ CONFIG_CRYPTO_DEV_ROCKCHIP=m
 ## file: drivers/firmware/arm_scmi/Kconfig
 ##
 CONFIG_ARM_SCMI_PROTOCOL=y
+CONFIG_ARM_SCMI_POWER_CONTROL=y
 
 ##
 ## file: drivers/firmware/arm_scmi/transports/Kconfig
 ##
-# CONFIG_ARM_SCMI_TRANSPORT_MAILBOX is not set
+CONFIG_ARM_SCMI_TRANSPORT_MAILBOX=y
+CONFIG_ARM_SCMI_TRANSPORT_SMC=y
 
 ##
 ## file: drivers/hid/Kconfig
@@ -699,6 +701,11 @@ CONFIG_I2C_HID_OF_GOODIX=m
 CONFIG_USB_HIDDEV=y
 
 ##
+## file: drivers/hwmon/Kconfig
+##
+CONFIG_SENSORS_ARM_SCMI=m
+
+##
 ## file: drivers/i2c/Kconfig
 ##
 CONFIG_I2C=y
@@ -714,6 +721,11 @@ CONFIG_I2C_ALGOBIT=y
 ## file: drivers/i2c/busses/Kconfig
 ##
 CONFIG_I2C_RK3X=y
+
+##
+## file: drivers/iio/common/scmi_sensors/Kconfig
+##
+CONFIG_IIO_SCMI=m
 
 ##
 ## file: drivers/input/Kconfig
@@ -873,9 +885,20 @@ CONFIG_BRCMFMAC=m
 # CONFIG_WLAN_VENDOR_ZYDAS is not set
 
 ##
+## file: drivers/pinctrl/Kconfig
+##
+CONFIG_PINCTRL_SCMI=y
+
+##
 ## file: drivers/pmdomain/arm/Kconfig
 ##
+CONFIG_ARM_SCMI_PERF_DOMAIN=y
 CONFIG_ARM_SCMI_POWER_DOMAIN=y
+
+##
+## file: drivers/regulator/Kconfig
+##
+CONFIG_REGULATOR_ARM_SCMI=m
 
 ##
 ## file: drivers/reset/Kconfig
