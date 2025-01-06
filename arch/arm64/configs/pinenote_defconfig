@@ -315,10 +315,6 @@ CONFIG_VIDEO_ROCKCHIP_VDEC=m
 # CONFIG_HISILICON_ERRATUM_161010101 is not set
 # CONFIG_ARM64_ERRATUM_858921 is not set
 CONFIG_EXTCON=y
-CONFIG_IIO=m
-CONFIG_IIO_SW_TRIGGER=m
-CONFIG_IIO_ST_ACCEL_3AXIS=m
-CONFIG_ROCKCHIP_SARADC=m
 CONFIG_PWM=y
 CONFIG_PWM_ROCKCHIP=y
 CONFIG_EXT4_FS=y
@@ -672,6 +668,22 @@ CONFIG_I2C_ALGOBIT=y
 ## file: drivers/i2c/busses/Kconfig
 ##
 CONFIG_I2C_RK3X=y
+
+##
+## file: drivers/iio/Kconfig
+##
+CONFIG_IIO=m
+CONFIG_IIO_SW_TRIGGER=m
+
+##
+## file: drivers/iio/accel/Kconfig
+##
+CONFIG_IIO_ST_ACCEL_3AXIS=m
+
+##
+## file: drivers/iio/adc/Kconfig
+##
+CONFIG_ROCKCHIP_SARADC=m
 
 ##
 ## file: drivers/iio/common/scmi_sensors/Kconfig
