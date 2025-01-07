@@ -139,7 +139,6 @@ CONFIG_DM_THIN_PROVISIONING=m
 # CONFIG_LEGACY_PTYS is not set
 # CONFIG_LDISC_AUTOLOAD is not set
 # CONFIG_HW_RANDOM is not set
-CONFIG_GPIO_SYSFS=y
 CONFIG_WATCHDOG=y
 CONFIG_WATCHDOG_SYSFS=y
 CONFIG_DW_WATCHDOG=y
@@ -602,6 +601,11 @@ CONFIG_EFI_BOOTLOADER_CONTROL=y
 ## file: drivers/firmware/smccc/Kconfig
 ##
 # CONFIG_ARM_SMCCC_SOC_ID is not set
+
+##
+## file: drivers/gpio/Kconfig
+##
+CONFIG_GPIO_SYSFS=y
 
 ##
 ## file: drivers/gpu/drm/Kconfig
