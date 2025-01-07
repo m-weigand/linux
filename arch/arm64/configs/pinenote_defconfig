@@ -347,11 +347,56 @@ CONFIG_BT_HCIUART_BCM=y
 ##
 ## file: drivers/char/hw_random/Kconfig
 ##
-# CONFIG_HW_RANDOM is not set
+CONFIG_HW_RANDOM=m
+# CONFIG_HW_RANDOM_TIMERIOMEM is not set
+# CONFIG_HW_RANDOM_INTEL is not set
+# CONFIG_HW_RANDOM_AMD is not set
+# CONFIG_HW_RANDOM_ATMEL is not set
+# CONFIG_HW_RANDOM_BA431 is not set
+# CONFIG_HW_RANDOM_BCM2835 is not set
+# CONFIG_HW_RANDOM_IPROC_RNG200 is not set
+# CONFIG_HW_RANDOM_GEODE is not set
+# CONFIG_HW_RANDOM_N2RNG is not set
+# CONFIG_HW_RANDOM_VIA is not set
+# CONFIG_HW_RANDOM_IXP4XX is not set
+# CONFIG_HW_RANDOM_OMAP is not set
+# CONFIG_HW_RANDOM_OMAP3_ROM is not set
+# CONFIG_HW_RANDOM_OCTEON is not set
+# CONFIG_HW_RANDOM_PASEMI is not set
+# CONFIG_HW_RANDOM_VIRTIO is not set
+# CONFIG_HW_RANDOM_MXC_RNGA is not set
+# CONFIG_HW_RANDOM_IMX_RNGC is not set
+# CONFIG_HW_RANDOM_INGENIC_RNG is not set
+# CONFIG_HW_RANDOM_INGENIC_TRNG is not set
+# CONFIG_HW_RANDOM_NOMADIK is not set
+# CONFIG_HW_RANDOM_PSERIES is not set
+# CONFIG_HW_RANDOM_POWERNV is not set
+# CONFIG_HW_RANDOM_HISI is not set
+# CONFIG_HW_RANDOM_HISTB is not set
+# CONFIG_HW_RANDOM_ST is not set
+# CONFIG_HW_RANDOM_XGENE is not set
+# CONFIG_HW_RANDOM_STM32 is not set
+# CONFIG_HW_RANDOM_PIC32 is not set
+# CONFIG_HW_RANDOM_POLARFIRE_SOC is not set
+# CONFIG_HW_RANDOM_MESON is not set
+# CONFIG_HW_RANDOM_CAVIUM is not set
+# CONFIG_HW_RANDOM_MTK is not set
+# CONFIG_HW_RANDOM_S390 is not set
+# CONFIG_HW_RANDOM_EXYNOS is not set
+# CONFIG_HW_RANDOM_OPTEE is not set
+# CONFIG_HW_RANDOM_NPCM is not set
+# CONFIG_HW_RANDOM_KEYSTONE is not set
+# CONFIG_HW_RANDOM_CCTRNG is not set
+# CONFIG_HW_RANDOM_XIPHERA is not set
+# CONFIG_HW_RANDOM_ARM_SMCCC_TRNG is not set
+# CONFIG_HW_RANDOM_CN10K is not set
+# CONFIG_HW_RANDOM_JH7110 is not set
+CONFIG_HW_RANDOM_ROCKCHIP=m
 
 ##
 ## file: drivers/clk/Kconfig
 ##
+CONFIG_COMMON_CLK=y
 CONFIG_COMMON_CLK_RK808=y
 CONFIG_COMMON_CLK_SCMI=y
 
@@ -363,6 +408,9 @@ CONFIG_COMMON_CLK_SCMI=y
 # CONFIG_CLK_RK3328 is not set
 # CONFIG_CLK_RK3368 is not set
 # CONFIG_CLK_RK3399 is not set
+CONFIG_CLK_RK3568=y
+# CONFIG_CLK_RK3576 is not set
+# CONFIG_CLK_RK3588 is not set
 
 ##
 ## file: drivers/cpufreq/Kconfig
@@ -396,6 +444,7 @@ CONFIG_CPU_IDLE_GOV_TEO=y
 ##
 CONFIG_ARM_CPUIDLE=y
 CONFIG_ARM_PSCI_CPUIDLE=y
+CONFIG_ARM_PSCI_CPUIDLE_DOMAIN=y
 
 ##
 ## file: drivers/crypto/Kconfig
@@ -457,6 +506,7 @@ CONFIG_EFI_BOOTLOADER_CONTROL=y
 ## file: drivers/gpio/Kconfig
 ##
 CONFIG_GPIO_SYSFS=y
+CONFIG_GPIO_ROCKCHIP=m
 
 ##
 ## file: drivers/gpu/drm/Kconfig
@@ -832,6 +882,11 @@ CONFIG_VIDEO_HANTRO_ROCKCHIP=y
 CONFIG_MFD_RK8XX_I2C=y
 
 ##
+## file: drivers/misc/Kconfig
+##
+CONFIG_SRAM=y
+
+##
 ## file: drivers/mmc/Kconfig
 ##
 CONFIG_MMC=y
@@ -871,6 +926,7 @@ CONFIG_ETHERNET=y
 ## file: drivers/net/ethernet/stmicro/stmmac/Kconfig
 ##
 CONFIG_STMMAC_ETH=y
+CONFIG_STMMAC_PLATFORM=m
 CONFIG_DWMAC_ROCKCHIP=y
 
 ##
@@ -985,10 +1041,22 @@ CONFIG_PCI=y
 ## file: drivers/pci/controller/dwc/Kconfig
 ##
 CONFIG_PCIE_ROCKCHIP_DW_HOST=y
+CONFIG_PCIE_ROCKCHIP_DW_EP=y
+
+##
+## file: drivers/pci/endpoint/Kconfig
+##
+CONFIG_PCI_ENDPOINT=y
+
+##
+## file: drivers/perf/Kconfig
+##
+CONFIG_ARM_PMUV3=y
 
 ##
 ## file: drivers/pinctrl/Kconfig
 ##
+CONFIG_PINCTRL_ROCKCHIP=y
 CONFIG_PINCTRL_SCMI=y
 
 ##
@@ -1458,6 +1526,7 @@ CONFIG_SND_SIMPLE_CARD=m
 CONFIG_SND_SOC_ROCKCHIP=m
 CONFIG_SND_SOC_ROCKCHIP_I2S_TDM=m
 CONFIG_SND_SOC_ROCKCHIP_PDM=m
+CONFIG_SND_SOC_ROCKCHIP_SPDIF=m
 
 ##
 ## file: sound/spi/Kconfig
