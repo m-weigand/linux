@@ -103,7 +103,6 @@ CONFIG_CP15_BARRIER_EMULATION=y
 # CONFIG_ARM64_AMU_EXTN is not set
 # CONFIG_ARM64_BTI is not set
 # CONFIG_ARM64_E0PD is not set
-# CONFIG_ARCH_RANDOM is not set
 # CONFIG_ARM64_EPAN is not set
 # CONFIG_ARM64_SVE is not set
 CONFIG_JUMP_LABEL=y
@@ -138,7 +137,6 @@ CONFIG_BLK_DEV_DM=m
 CONFIG_DM_THIN_PROVISIONING=m
 # CONFIG_LEGACY_PTYS is not set
 # CONFIG_LDISC_AUTOLOAD is not set
-# CONFIG_HW_RANDOM is not set
 CONFIG_WATCHDOG=y
 CONFIG_WATCHDOG_SYSFS=y
 CONFIG_DW_WATCHDOG=y
@@ -499,6 +497,11 @@ CONFIG_DEVTMPFS_MOUNT=y
 ## file: drivers/base/firmware_loader/Kconfig
 ##
 # CONFIG_FW_CACHE is not set
+
+##
+## file: drivers/char/hw_random/Kconfig
+##
+# CONFIG_HW_RANDOM is not set
 
 ##
 ## file: drivers/clk/Kconfig
