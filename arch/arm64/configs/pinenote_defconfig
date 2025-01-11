@@ -627,6 +627,8 @@ CONFIG_ROCKCHIP_MBOX=y
 ## file: drivers/media/Kconfig
 ##
 CONFIG_MEDIA_SUPPORT=m
+CONFIG_MEDIA_PLATFORM_SUPPORT=y
+CONFIG_VIDEO_DEV=m
 
 ##
 ## file: drivers/media/cec/Kconfig
