@@ -885,6 +885,12 @@ CONFIG_VIDEO_HANTRO_ROCKCHIP=y
 # CONFIG_MEDIA_TUNER_XC5000 is not set
 
 ##
+## file: drivers/media/usb/uvc/Kconfig
+##
+CONFIG_USB_VIDEO_CLASS=m
+CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+
+##
 ## file: drivers/mfd/Kconfig
 ##
 CONFIG_MFD_RK8XX_I2C=y
