@@ -10,6 +10,8 @@
 #include "rk3566.dtsi"
 
 / {
+	chassis-type = "tablet";
+
 	aliases {
 		mmc0 = &sdhci;
 	};
