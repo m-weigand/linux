@@ -332,7 +332,7 @@ static int ioctl_set_off_screen(struct drm_device *dev, void *data,
 
 	copy_result = copy_from_user(&ebc->off_screen, args->ptr_screen_content, 1313144);
 	if (copy_result != 0){
-		pr_err("Could not copy offscreen content from user-supplied data pointer (bytes not copied: %lu)", copy_result);
+		pr_err("Could not copy offscreen content from user-supplied data pointer (bytes not copied: %i)", copy_result);
 	}
 
 	return 0;
