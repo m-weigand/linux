@@ -1602,7 +1602,7 @@ static int rockchip_ebc_refresh_thread(void *data)
 			rockchip_ebc_refresh(ebc, ctx, true, DRM_EPD_WF_GC16);
 		}
 		else{
-			no_off_screen = false;
+			// no_off_screen = false;
 		}
 
 		// save the prev buffer in case we need it after resuming
