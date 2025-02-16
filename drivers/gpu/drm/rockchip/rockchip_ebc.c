@@ -282,6 +282,10 @@ static bool prepare_prev_before_a2 = false;
 module_param(prepare_prev_before_a2, bool, 0644);
 MODULE_PARM_DESC(prepare_prev_before_a2, "Convert prev buffer to bw when switchting to the A2 waveform");
 
+static bool globre_convert_before = false;
+module_param(globre_convert_before, bool, 0644);
+MODULE_PARM_DESC(globre_convert_before, "Convert prev buffer to target color space before global refresh");
+
 static int dclk_select = 0;
 module_param(dclk_select, int, 0644);
 MODULE_PARM_DESC(dclk_select, "-1: use dclk from mode, 0: 200 MHz (default), 1: 250");
@@ -526,6 +530,97 @@ static void rockchip_ebc_ctx_release(struct kref *kref)
  * CRTC
  */
 
+static void convert_final_buf_to_target(u8 * buffer, u8 * tmp, u32 gray4_size){
+	u8 * src;
+	u8 * dst;
+	u8 pixel1;
+	u8 pixel2;
+	int x, y;
+
+	int pattern[4][4] = {
+		{7, 8, 2, 10},
+		{12, 4, 14, 6},
+		{3, 11, 1,  9},
+		{15, 7, 13, 5},
+	};
+
+	u8 dither_low = bw_dither_invert ? 15 : 0;
+	u8 dither_high = bw_dither_invert ? 0 : 15;
+
+	if (default_waveform == 1) {
+		// A2 waveform
+		// apply dithering
+		src = buffer;
+		dst = tmp;
+
+		for (y=0; y<1404; y++){
+			for (x=0; x<1872; x=x+2){
+				pixel1 = *src & 0b00001111;
+				pixel2 = (*src & 0b11110000) >> 4;
+
+				if (pixel1 >= pattern[x & 3][y & 3]){
+					pixel1 = dither_high;
+				} else {
+					pixel1 = dither_low;
+				}
+
+				if (pixel2 >= pattern[(x + 1) & 3][y & 3]){
+					pixel2 = dither_high;
+				} else {
+					pixel2 = dither_low;
+				}
+
+				*dst = pixel1 | pixel2 << 4;
+				src++;
+				dst++;
+
+			}
+		}
+		// now tmp should contain the dithered image. copy it back
+		memcpy(buffer, tmp, gray4_size);
+	}
+
+	// DU4 waveform
+	if (default_waveform == 3){
+		src = buffer;
+		dst = tmp;
+
+		for (x=0; x<1872; x=x+2){
+			for (y=0; y<1404; y++){
+				pixel1 = *src & 0b00001111;
+				pixel2 = (*src & 0b11110000) >> 4;
+				// downsample to 4 bw values corresponding to the DU4
+				// transitions: 0, 5, 10, 15
+				if (pixel1 < fourtone_low_threshold){
+					pixel1 = 0;
+				} else if (pixel1  < fourtone_mid_threshold){
+					pixel1 = 5;
+				} else if (pixel1  < fourtone_hi_threshold){
+					pixel1 = 10;
+				} else {
+					pixel1 = 15;
+				}
+
+				if (pixel2 < fourtone_low_threshold){
+					pixel2 = 0;
+				} else if (pixel2  < fourtone_mid_threshold){
+					pixel2 = 5;
+				} else if (pixel2  < fourtone_hi_threshold){
+					pixel2 = 10;
+				} else {
+					pixel2 = 15;
+				}
+
+				*dst = (pixel2 << 4) | pixel1;
+				src++;
+				dst++;
+			}
+		}
+		// now tmp should contain the down-sampled image. copy it back
+		memcpy(buffer, tmp, gray4_size);
+	}
+}
+
 static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 					struct rockchip_ebc_ctx *ctx,
 					 dma_addr_t next_handle,
@@ -547,6 +642,19 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 		ctx->switch_required = false;
 	}
 	ctx->final = ctx->final_buffer[ctx->ebc_buffer_index];
+	// we either want to force a conversion using the module parameter
+	// globre_convert_before, or we are coming out of suspend - in this case,
+	// make sure to convert to the current waveform (A2 or DU4) in this global
+	// refresh so subsequent draws will start from a known, reachable state by
+	// those waveforms
+	if (globre_convert_before || ebc->suspend_was_requested){
+		// convert both final buffers to the target colorspace (i.e., the
+		// current default waveform
+		// note: we use next as a tmp buffer, as it will be overwritten a few
+		// lines further down
+		convert_final_buf_to_target(ctx->final_buffer[0], ctx->next, gray4_size);
+		convert_final_buf_to_target(ctx->final_buffer[1], ctx->next, gray4_size);
+	}
 	spin_unlock(&ctx->queue_lock);
 	memcpy(ctx->next, ctx->final, gray4_size);
 
@@ -571,6 +679,8 @@ static void rockchip_ebc_global_refresh(struct rockchip_ebc *ebc,
 		drm_err(drm, "Refresh timed out!\n");
 
 	memcpy(ctx->prev, ctx->next, gray4_size);
+	// this was the first global refresh after resume, reset the variable
+	ebc->suspend_was_requested = 0;
 }
 
 /*
