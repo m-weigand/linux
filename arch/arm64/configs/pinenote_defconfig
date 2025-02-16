@@ -186,7 +186,6 @@ CONFIG_NLS_ISO8859_1=y
 CONFIG_NLS_UTF8=y
 CONFIG_UNICODE=y
 CONFIG_KEYS=y
-CONFIG_LSM=""
 CONFIG_DMA_CMA=y
 CONFIG_PRINTK_TIME=y
 # CONFIG_DEBUG_MISC is not set
@@ -1523,6 +1522,17 @@ CONFIG_CFG80211_DEBUGFS=y
 ## file: net/xfrm/Kconfig
 ##
 CONFIG_XFRM_USER=m
+
+##
+## file: security/Kconfig
+##
+CONFIG_LSM="landlock"
+CONFIG_SECURITY=y
+
+##
+## file: security/landlock/Kconfig
+##
+CONFIG_SECURITY_LANDLOCK=y
 
 ##
 ## file: sound/Kconfig
