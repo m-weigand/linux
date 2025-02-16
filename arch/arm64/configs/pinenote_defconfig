@@ -186,13 +186,10 @@ CONFIG_NLS_ISO8859_1=y
 CONFIG_NLS_UTF8=y
 CONFIG_UNICODE=y
 CONFIG_KEYS=y
-CONFIG_LSM=""
 CONFIG_DMA_CMA=y
 CONFIG_PRINTK_TIME=y
 # CONFIG_DEBUG_MISC is not set
 CONFIG_DEBUG_INFO_DWARF5=y
-CONFIG_DEBUG_INFO_REDUCED=y
-CONFIG_DEBUG_INFO_SPLIT=y
 CONFIG_MAGIC_SYSRQ=y
 # CONFIG_MAGIC_SYSRQ_SERIAL is not set
 CONFIG_DEBUG_FS=y
@@ -224,6 +221,11 @@ CONFIG_FUNCTION_TRACER=y
 CONFIG_FUNCTION_GRAPH_TRACER=y
 CONFIG_FUNCTION_GRAPH_RETVAL=y
 CONFIG_OF_OVERLAY=y
+
+##
+## file: arch/Kconfig
+##
+CONFIG_KPROBES=y
 
 ##
 ## file: arch/arm64/crypto/Kconfig
@@ -548,6 +550,11 @@ CONFIG_HID_BATTERY_STRENGTH=y
 CONFIG_HIDRAW=y
 CONFIG_UHID=m
 CONFIG_HID_MICROSOFT=y
+
+##
+## file: drivers/hid/bpf/Kconfig
+##
+CONFIG_HID_BPF=y
 
 ##
 ## file: drivers/hid/i2c-hid/Kconfig
@@ -1343,6 +1350,19 @@ CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
 CONFIG_ENERGY_MODEL=y
 
 ##
+## file: kernel/trace/Kconfig
+##
+CONFIG_KPROBE_EVENTS=y
+CONFIG_UPROBE_EVENTS=y
+
+##
+## file: lib/Kconfig.debug
+##
+# CONFIG_DEBUG_INFO_REDUCED is not set
+# CONFIG_DEBUG_INFO_SPLIT is not set
+CONFIG_DEBUG_INFO_BTF=y
+
+##
 ## file: net/Kconfig
 ##
 CONFIG_NET=y
@@ -1502,6 +1522,17 @@ CONFIG_CFG80211_DEBUGFS=y
 ## file: net/xfrm/Kconfig
 ##
 CONFIG_XFRM_USER=m
+
+##
+## file: security/Kconfig
+##
+CONFIG_LSM="landlock"
+CONFIG_SECURITY=y
+
+##
+## file: security/landlock/Kconfig
+##
+CONFIG_SECURITY_LANDLOCK=y
 
 ##
 ## file: sound/Kconfig
